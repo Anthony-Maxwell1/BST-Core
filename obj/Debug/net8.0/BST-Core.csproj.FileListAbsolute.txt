@@ -1,0 +1,7 @@
+/home/anthony/BST-Core/obj/Debug/net8.0/rpswa.dswa.cache.json
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.GeneratedMSBuildEditorConfig.editorconfig
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.AssemblyInfoInputs.cache
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.AssemblyInfo.cs
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.csproj.CoreCompileInputs.cache
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.MvcApplicationPartsAssemblyInfo.cache
+/home/anthony/BST-Core/obj/Debug/net8.0/BST-Core.sourcelink.json
