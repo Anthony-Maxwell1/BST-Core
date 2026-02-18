@@ -1,22 +1,24 @@
-using Fleck;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Fleck; 
 
-namespace BST_Core;
-
-public class Worker : BackgroundService
+public class MainWebSocketWorker : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
+    private readonly ILogger<MainWebSocketWorker> _logger;
     private readonly List<IWebSocketConnection> _clients = new();
 
-    public Worker(ILogger<Worker> logger)
+    public MainWebSocketWorker(ILogger<MainWebSocketWorker> logger)
     {
         _logger = logger;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var server = new WebSocketServer("ws://0.0.0.0:5000");
+        var server = new Fleck.WebSocketServer("ws://0.0.0.0:5000");
 
         server.Start(socket =>
         {
@@ -32,21 +34,19 @@ public class Worker : BackgroundService
                 _logger.LogInformation("Client disconnected: {0}", socket.ConnectionInfo.ClientIpAddress);
             };
 
-            socket.OnMessage = message =>
+            socket.OnMessage = msg =>
             {
-                _logger.LogInformation("Received: {0}", message);
-                // broadcast to all other clients
+                // dumb broadcast to all other clients
                 foreach (var client in _clients)
                 {
                     if (client != socket)
-                        client.Send(message);
+                        client.Send(msg);
                 }
             };
         });
 
-        _logger.LogInformation("Fleck WebSocket server running on ws://0.0.0.0:5000");
+        _logger.LogInformation("WebSocket server running on ws://0.0.0.0:5000");
 
-        // Keep the Worker running until cancellation
         return Task.Delay(Timeout.Infinite, stoppingToken);
     }
 }

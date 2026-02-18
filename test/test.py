@@ -3,5 +3,5 @@ import websocket
 ws = websocket.WebSocket()
 ws.connect("ws://localhost:5000")
 
-ws.send("hello")
+ws.send("{\"type\": \"cli\", \"command\": \"status\"}")
 print(ws.recv())
