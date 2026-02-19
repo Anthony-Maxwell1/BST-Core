@@ -435,7 +435,7 @@
             "rid": "win",
             "assetType": "runtime",
             "assemblyVersion": "10.0.0.0",
-            "fileVersion": "0.0.0.0"
+            "fileVersion": "10.0.25.52411"
           },
           "runtimes/win/lib/net10.0/System.Diagnostics.EventLog.dll": {
             "rid": "win",

@@ -9,8 +9,11 @@ ws.send(
     json.dumps(
         {
             "type": "cli",
-            "command": "close-project",
+            "command": "open-project",
             "id": "test1234",
+            "args": {
+                "name": "Place1"
+            }
         }
     )
 )

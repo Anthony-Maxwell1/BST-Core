@@ -260,12 +260,6 @@ public class InternalClientWorker : BackgroundService
         // Load RBXL
         _currentPlace = RobloxFile.Open(projectFile);
 
-        // Unpack into folders
-        // Clear previous unpack
-        if (Directory.Exists(_unpackedPath))
-            Directory.Delete(_unpackedPath, true);
-        Directory.CreateDirectory(_unpackedPath);
-
         // Start recursion at root
         foreach (var child in _currentPlace.GetChildren())
         {

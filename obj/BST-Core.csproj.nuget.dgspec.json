@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\anthony.maxwell\\BST-Core\\BST-Core.csproj": {}
+    "/home/anthony/BST-Core/BST-Core.csproj": {}
   },
   "projects": {
-    "C:\\Users\\anthony.maxwell\\BST-Core\\BST-Core.csproj": {
+    "/home/anthony/BST-Core/BST-Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\anthony.maxwell\\BST-Core\\BST-Core.csproj",
+        "projectUniqueName": "/home/anthony/BST-Core/BST-Core.csproj",
         "projectName": "BST-Core",
-        "projectPath": "C:\\Users\\anthony.maxwell\\BST-Core\\BST-Core.csproj",
-        "packagesPath": "C:\\Users\\anthony.maxwell\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\anthony.maxwell\\BST-Core\\obj\\",
+        "projectPath": "/home/anthony/BST-Core/BST-Core.csproj",
+        "packagesPath": "/home/anthony/.nuget/packages/",
+        "outputPath": "/home/anthony/BST-Core/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\anthony.maxwell\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/home/anthony/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
@@ -72,12 +72,18 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[10.0.0, 10.0.0]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
