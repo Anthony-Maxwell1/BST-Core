@@ -13,7 +13,7 @@ public class InternalClientWorker : BackgroundService
 
     private bool _projectOpen = false;
     private string _currentProject = null;
-    private string _unpackedPath = "C:/Users/anthony.maxwell/BST-Core/unpacked";
+    private string _unpackedPath = "./unpacked";
     private RobloxFile _currentPlace = null; // RBXL in-memory
 
     private readonly IDeserializer _yamlDeserializer;
