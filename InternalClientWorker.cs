@@ -130,6 +130,15 @@ public class InternalClientWorker : BackgroundService
             if (!root.TryGetProperty("type", out var typeProp))
                 return;
 
+            if (typeProp.GetString() == "edit")
+            {
+                var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+                var args = root.TryGetProperty("args", out var argsProp) ? argsProp : default;
+                if (_projectOpen)
+                    await ApplyEdit(args, id);
+                return;
+            }
+
             if (typeProp.GetString() != "cli")
                 return;
 
@@ -166,11 +175,6 @@ public class InternalClientWorker : BackgroundService
 
             case "close-project":
                 await CloseCurrentProject(id);
-                break;
-
-            case "edit":
-                if (_projectOpen)
-                    await ApplyEdit(args, id);
                 break;
         }
     }
