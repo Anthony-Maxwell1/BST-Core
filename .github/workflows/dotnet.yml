@@ -1,0 +1,44 @@
+name: Build and Release .NET App
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build and Publish
+        run: |
+          dotnet publish --configuration Release -o ./release_output
+          zip -r app-artifact.zip ./release_output
+
+      - name: Create Tag
+        run: |
+          git tag v${{ github.run_number }}
+          git push origin v${{ github.run_number }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ github.run_number }} \
+            --title="Build v${{ github.run_number }}" \
+            --generate-notes \
+            ./app-artifact.zip
