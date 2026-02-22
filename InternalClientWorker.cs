@@ -19,6 +19,80 @@ public class InternalClientWorker : BackgroundService
     private readonly IDeserializer _yamlDeserializer;
     private readonly ISerializer _yamlSerializer;
 
+    private FileSystemWatcher _watcher;
+
+    private void StartWatchingUnpacked()
+    {
+        if (!Directory.Exists(_unpackedPath)) return;
+
+        _watcher = new FileSystemWatcher(_unpackedPath)
+        {
+            IncludeSubdirectories = true,
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName
+        };
+
+        _watcher.Changed += OnUnpackedFileChanged;
+        _watcher.Created += OnUnpackedFileChanged;
+        _watcher.Deleted += OnUnpackedFileChanged;
+        _watcher.Renamed += OnUnpackedFileChanged;
+
+        _watcher.EnableRaisingEvents = true;
+    }
+
+    private async void OnUnpackedFileChanged(object sender, FileSystemEventArgs e)
+    {
+        if (_currentPlace == null) return;
+
+        try
+        {
+            var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
+            var parts = relativePath.Split(Path.DirectorySeparatorChar);
+
+            if (parts.Length == 0) return;
+
+            // Folder format: Name.ClassName.GUID
+            var folderName = parts[0];
+            var nameClass = folderName.Split('.');
+            if (nameClass.Length < 2) return;
+
+            var name = nameClass[0];
+            var className = nameClass[1];
+
+            var instance = _currentPlace
+                .GetDescendants()
+                .FirstOrDefault(x => x.Name == name && x.ClassName == className);
+
+            if (instance == null) return;
+
+            if (Path.GetFileName(e.FullPath) == "properties.yaml")
+            {
+                var yamlText = await File.ReadAllTextAsync(e.FullPath);
+                var props = _yamlDeserializer.Deserialize<Dictionary<string, object>>(yamlText);
+
+                if (props != null)
+                {
+                    foreach (var kvp in props)
+                    {
+                        if (instance.Properties.TryGetValue(kvp.Key, out var prop))
+                            prop.Value = kvp.Value;
+                    }
+                }
+            }
+            else if (Path.GetFileName(e.FullPath) == "code.lua")
+            {
+                var code = await File.ReadAllTextAsync(e.FullPath);
+                if (instance.Properties.TryGetValue("Source", out var prop))
+                    prop.Value = code;
+            }
+
+            _logger.LogInformation("Updated instance {name}.{className} from file change", name, className);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update instance from file change: {file}", e.FullPath);
+        }
+    }
+
     public InternalClientWorker(ILogger<InternalClientWorker> logger)
     {
         _logger = logger;
@@ -276,6 +350,8 @@ public class InternalClientWorker : BackgroundService
 
         _currentProject = projectName;
         _projectOpen = true;
+
+        StartWatchingUnpacked();
 
         await SendAsync(_ws, json: new Dictionary<string, object>
         {
