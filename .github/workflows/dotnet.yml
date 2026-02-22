@@ -25,30 +25,51 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      # -----------------------------
+      # Linux Build
+      # -----------------------------
       - name: Build and Publish Linux
         run: |
           OUT_DIR=./release_output/linux-x64
           dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
-          zip -r app-linux-x64.zip $OUT_DIR
+          cd $OUT_DIR
+          zip -r ../../app-linux-x64.zip ./*
+          cd ../../
 
+      # -----------------------------
+      # Windows Build
+      # -----------------------------
       - name: Build and Publish Windows
         run: |
           OUT_DIR=./release_output/win-x64
           dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
-          zip -r app-win-x64.zip $OUT_DIR
+          cd $OUT_DIR
+          zip -r ../../app-win-x64.zip ./*
+          cd ../../
 
+      # -----------------------------
+      # macOS Build
+      # -----------------------------
       - name: Build and Publish macOS
         run: |
           OUT_DIR=./release_output/osx-x64
           dotnet publish -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
-          zip -r app-osx-x64.zip $OUT_DIR
+          cd $OUT_DIR
+          zip -r ../../app-osx-x64.zip ./*
+          cd ../../
 
+      # -----------------------------
+      # Create Tag
+      # -----------------------------
       - name: Create Tag
         if: github.ref == 'refs/heads/main'
         run: |
           git tag v${{ github.run_number }}
           git push origin v${{ github.run_number }}
 
+      # -----------------------------
+      # Create Release
+      # -----------------------------
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
