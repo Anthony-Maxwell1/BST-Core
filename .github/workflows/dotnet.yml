@@ -11,6 +11,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux-x64, win-x64, osx-x64] # 3 target OSes
 
     steps:
       - name: Checkout code
@@ -19,17 +22,19 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build and Publish
         run: |
-          dotnet publish --configuration Release -o ./release_output
-          zip -r app-artifact.zip ./release_output
+          OUT_DIR=./release_output/${{ matrix.os }}
+          dotnet publish -c Release -r ${{ matrix.os }} --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
+          zip -r app-${{ matrix.os }}.zip $OUT_DIR
 
       - name: Create Tag
+        if: github.ref == 'refs/heads/main'
         run: |
           git tag v${{ github.run_number }}
           git push origin v${{ github.run_number }}
@@ -38,7 +43,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Upload all 3 zips
           gh release create v${{ github.run_number }} \
             --title="Build v${{ github.run_number }}" \
             --generate-notes \
-            ./app-artifact.zip
+            ./app-linux-x64.zip \
+            ./app-win-x64.zip \
+            ./app-osx-x64.zip
