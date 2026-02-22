@@ -12,9 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [linux-x64, win-x64, osx-x64] # 3 target OSes
 
     steps:
       - name: Checkout code
@@ -28,11 +25,23 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Build and Publish
+      - name: Build and Publish Linux
         run: |
-          OUT_DIR=./release_output/${{ matrix.os }}
-          dotnet publish -c Release -r ${{ matrix.os }} --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
-          zip -r app-${{ matrix.os }}.zip $OUT_DIR
+          OUT_DIR=./release_output/linux-x64
+          dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
+          zip -r app-linux-x64.zip $OUT_DIR
+
+      - name: Build and Publish Windows
+        run: |
+          OUT_DIR=./release_output/win-x64
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
+          zip -r app-win-x64.zip $OUT_DIR
+
+      - name: Build and Publish macOS
+        run: |
+          OUT_DIR=./release_output/osx-x64
+          dotnet publish -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o $OUT_DIR
+          zip -r app-osx-x64.zip $OUT_DIR
 
       - name: Create Tag
         if: github.ref == 'refs/heads/main'
@@ -44,7 +53,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Upload all 3 zips
           gh release create v${{ github.run_number }} \
             --title="Build v${{ github.run_number }}" \
             --generate-notes \
