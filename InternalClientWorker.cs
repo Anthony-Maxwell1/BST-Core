@@ -441,15 +441,13 @@ public class InternalClientWorker : BackgroundService
 
     private async Task ApplyEdit(JsonElement args, string id)
     {
-        // args: path = folder name under _unpackedPath
-        // action: modify/create/delete
-        // target: property or script
-        // value: new value
-
         _logger.LogInformation("Applying edit: {args}", args);
 
         if (args.ValueKind != JsonValueKind.Object) return;
+
         var uuid = args.GetProperty("uuid").GetString();
+        if (string.IsNullOrEmpty(uuid)) return;
+
         var action = args.GetProperty("action").GetString();
         var target = args.GetProperty("target").GetString();
         var value = args.TryGetProperty("value", out var valProp) ? valProp.GetString() : null;
@@ -459,19 +457,9 @@ public class InternalClientWorker : BackgroundService
             .FirstOrDefault(dir => Path.GetFileName(dir).Contains(uuid));
 
         if (objDir == null) return;
+
         var folder = Path.GetFileName(objDir);
-
         _logger.LogInformation("Found object directory: {objDir}", objDir);
-        
-
-        // Find the instance in _currentPlace
-        var name = folder.Split('.')[0];
-        var className = folder.Split('.')[1];
-
-        var instance = _currentPlace
-            .GetDescendants()
-            .FirstOrDefault(x => x.Name == name && x.ClassName == className);
-        if (instance == null) return;
 
         switch (action)
         {
@@ -479,33 +467,43 @@ public class InternalClientWorker : BackgroundService
                 if (target == "property" && !string.IsNullOrEmpty(value))
                 {
                     var propName = args.GetProperty("property").GetString();
+                    if (string.IsNullOrEmpty(propName)) break;
 
-                    if (instance.Properties.TryGetValue(propName, out var prop))
+                    var propsPath = Path.Combine(objDir, "properties.yaml");
+                    if (!File.Exists(propsPath)) break;
+
+                    var lines = await File.ReadAllLinesAsync(propsPath);
+
+                    bool found = false;
+                    for (int i = 0; i < lines.Length; i++)
                     {
-                        prop.Value = value; // ✅ correct way
+                        // Match "PropName: anything" at the start of the line (not indented = top-level)
+                        if (lines[i].StartsWith(propName + ":"))
+                        {
+                            lines[i] = $"{propName}: {value}";
+                            found = true;
+                            break;
+                        }
                     }
 
-                    // Update YAML
-                    var propsYaml = _yamlSerializer.Serialize(
-                        instance.Properties.ToDictionary(k => k.Key, v => v.Value.Value)
-                    );
-                    await File.WriteAllTextAsync(Path.Combine(objDir, "properties.yaml"), propsYaml);
-                }
+                    if (!found)
+                    {
+                        // Property doesn't exist yet, append it
+                        var list = new List<string>(lines) { $"{propName}: {value}" };
+                        lines = list.ToArray();
+                    }
 
+                    await File.WriteAllTextAsync(propsPath, string.Join(Environment.NewLine, lines));
+                }
                 else if (target == "script" && !string.IsNullOrEmpty(value))
                 {
-                    if (instance.Properties.TryGetValue("Source", out var prop))
-                    {
-                        prop.Value = value; // ✅ correct way
-                    }
-                    await File.WriteAllTextAsync(Path.Combine(objDir, "code.lua"), value);
+                    var luaPath = Path.Combine(objDir, "code.lua");
+                    await File.WriteAllTextAsync(luaPath, value);
                 }
                 break;
-
             case "delete":
-                instance.Destroy();
                 if (Directory.Exists(objDir))
-                    Directory.Delete(objDir, recursive: true); // ← only once
+                    Directory.Delete(objDir, recursive: true);
                 break;
 
             case "create":
