@@ -16,6 +16,8 @@ public class InternalClientWorker : BackgroundService
     private string _unpackedPath = "./unpacked";
     private RobloxFile _currentPlace = null; // RBXL in-memory
 
+    private bool _closing = false;
+
     private readonly IDeserializer _yamlDeserializer;
     private readonly ISerializer _yamlSerializer;
 
@@ -25,10 +27,12 @@ public class InternalClientWorker : BackgroundService
     {
         if (!Directory.Exists(_unpackedPath)) return;
 
+        _watcher?.Dispose();
         _watcher = new FileSystemWatcher(_unpackedPath)
         {
             IncludeSubdirectories = true,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
+            // Only watch the specific files we care about
         };
 
         _watcher.Changed += OnUnpackedFileChanged;
@@ -41,22 +45,28 @@ public class InternalClientWorker : BackgroundService
 
     private async void OnUnpackedFileChanged(object sender, FileSystemEventArgs e)
     {
-        if (_currentPlace == null) return;
+        if (_currentPlace == null || _closing) return;
+
+        // Ignore events that aren't for a specific file we care about
+        var fileName = Path.GetFileName(e.FullPath);
+        if (fileName != "properties.yaml" && fileName != "code.lua")
+            return;
 
         try
         {
             var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
             var parts = relativePath.Split(Path.DirectorySeparatorChar);
 
-            if (parts.Length == 0) return;
+            // We expect: FolderName/properties.yaml or FolderName/code.lua
+            // parts[0] = instance folder, parts[1] = filename
+            if (parts.Length < 2) return;
 
-            // Folder format: Name.ClassName.GUID
             var folderName = parts[0];
-            var nameClass = folderName.Split('.');
-            if (nameClass.Length < 2) return;
+            var nameParts = folderName.Split('.');
+            if (nameParts.Length < 2) return;
 
-            var name = nameClass[0];
-            var className = nameClass[1];
+            var name = nameParts[0];
+            var className = nameParts[1];
 
             var instance = _currentPlace
                 .GetDescendants()
@@ -64,7 +74,10 @@ public class InternalClientWorker : BackgroundService
 
             if (instance == null) return;
 
-            if (Path.GetFileName(e.FullPath) == "properties.yaml")
+            // Small delay to let the file finish writing
+            await Task.Delay(100);
+
+            if (fileName == "properties.yaml")
             {
                 var yamlText = await File.ReadAllTextAsync(e.FullPath);
                 var props = _yamlDeserializer.Deserialize<Dictionary<string, object>>(yamlText);
@@ -74,24 +87,79 @@ public class InternalClientWorker : BackgroundService
                     foreach (var kvp in props)
                     {
                         if (instance.Properties.TryGetValue(kvp.Key, out var prop))
-                            prop.Value = kvp.Value;
+                        {
+                            // Coerce the YAML string value to the property's actual type
+                            prop.Value = CoerceValue(kvp.Value, prop.Value);
+                        }
                     }
                 }
             }
-            else if (Path.GetFileName(e.FullPath) == "code.lua")
+            else if (fileName == "code.lua")
             {
                 var code = await File.ReadAllTextAsync(e.FullPath);
                 if (instance.Properties.TryGetValue("Source", out var prop))
                     prop.Value = code;
             }
 
-            _logger.LogInformation("Updated instance {name}.{className} from file change", name, className);
+            _logger.LogInformation("Updated instance {name}.{className} from {file}", name, className, fileName);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update instance from file change: {file}", e.FullPath);
         }
     }
+
+    // Coerce a YAML-deserialized value (usually string) to match the existing property type
+    private static object CoerceValue(object yamlValue, object existingValue)
+    {
+        if (yamlValue == null) return existingValue;
+        if (existingValue == null) return yamlValue;
+
+        var targetType = existingValue.GetType();
+        var strVal = yamlValue.ToString();
+
+        try
+        {
+            if (targetType == typeof(bool) && bool.TryParse(strVal, out var b)) return b;
+            if (targetType == typeof(int) && int.TryParse(strVal, out var i)) return i;
+            if (targetType == typeof(float) && float.TryParse(strVal, out var f)) return f;
+            if (targetType == typeof(double) && double.TryParse(strVal, out var d)) return d;
+            if (targetType == typeof(long) && long.TryParse(strVal, out var l)) return l;
+            if (targetType == typeof(string)) return strVal;
+        }
+        catch { /* fall through */ }
+
+        return yamlValue; // best effort
+    }
+
+    private async Task RestoreUnpackedProject()
+    {
+        if (Directory.Exists(_unpackedPath))
+        {
+            var projectYaml = Path.Combine(_unpackedPath, "project.yaml");
+            if (File.Exists(projectYaml))
+            {
+                var meta = await File.ReadAllTextAsync(projectYaml);
+                var info = _yamlDeserializer.Deserialize<Dictionary<string, object>>(meta);
+
+                if (info != null && info.TryGetValue("name", out var nameObj))
+                {
+                    _currentProject = nameObj.ToString();
+                    _projectOpen = true;
+
+                    var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
+                    if (File.Exists(projectFile))
+                    {
+                        _currentPlace = RobloxFile.Open(projectFile);
+                    }
+
+                    StartWatchingUnpacked(); // ← was missing
+                    _logger.LogInformation("Restored unpacked project: {project}", _currentProject);
+                }
+            }
+        }
+    }
+
 
     public InternalClientWorker(ILogger<InternalClientWorker> logger)
     {
@@ -143,33 +211,6 @@ public class InternalClientWorker : BackgroundService
             {
                 _logger.LogError(ex, "Internal client disconnected, retrying in 5s...");
                 await Task.Delay(5000, stoppingToken);
-            }
-        }
-    }
-
-    private async Task RestoreUnpackedProject()
-    {
-        if (Directory.Exists(_unpackedPath))
-        {
-            var projectYaml = Path.Combine(_unpackedPath, "project.yaml");
-            if (File.Exists(projectYaml))
-            {
-                var meta = await File.ReadAllTextAsync(projectYaml);
-                var info = _yamlDeserializer.Deserialize<Dictionary<string, object>>(meta);
-
-                if (info != null && info.TryGetValue("name", out var nameObj))
-                {
-                    _currentProject = nameObj.ToString();
-                    _projectOpen = true;
-
-                    var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
-                    if (File.Exists(projectFile))
-                    {
-                        _currentPlace = RobloxFile.Open(projectFile); // Roblox-File-Format API
-                    }
-
-                    _logger.LogInformation("Restored unpacked project: {project}", _currentProject);
-                }
             }
         }
     }
@@ -296,9 +337,18 @@ public class InternalClientWorker : BackgroundService
         return safeProps;
     }
 
+    private static string SanitizeFolderName(string name)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(c, '_'); // replace invalid chars with underscore
+        }
+        return name;
+    }
+
     private async Task UnpackInstanceAsync(Instance obj, string parentPath)
     {
-        var folderName = $"{obj.Name}.{obj.ClassName}.{Guid.NewGuid()}";
+        var folderName = $"{SanitizeFolderName(obj.Name)}.{obj.ClassName}.{Guid.NewGuid()}";
         var folderPath = Path.Combine(parentPath, folderName);
         Directory.CreateDirectory(folderPath);
 
@@ -366,6 +416,7 @@ public class InternalClientWorker : BackgroundService
     {
         if (_projectOpen)
         {
+            _closing = true;
             // Repack RBXL
             var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
             _currentPlace.Save(projectFile);
@@ -377,6 +428,7 @@ public class InternalClientWorker : BackgroundService
             _projectOpen = false;
             _currentProject = null;
             _currentPlace = null;
+            _closing = false;
         }
 
         await SendAsync(_ws, json: new Dictionary<string, object>
@@ -444,9 +496,8 @@ public class InternalClientWorker : BackgroundService
 
             case "delete":
                 instance.Destroy();
-                Directory.Delete(objDir, recursive: true);
-                Directory.Delete(objDir, recursive: true);   // Delete unpack folder
-                Directory.Delete(objDir, recursive: true);
+                if (Directory.Exists(objDir))
+                    Directory.Delete(objDir, recursive: true); // ← only once
                 break;
 
             case "create":
