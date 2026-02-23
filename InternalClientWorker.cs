@@ -13,7 +13,7 @@ public class InternalClientWorker : BackgroundService
 
     private bool _projectOpen = false;
     private string _currentProject = null;
-    private string _unpackedPath = "./unpacked";
+    private readonly string _unpackedPath = Path.Combine(AppContext.BaseDirectory, "unpacked");
     private RobloxFile _currentPlace = null; // RBXL in-memory
 
     private bool _closing = false;
