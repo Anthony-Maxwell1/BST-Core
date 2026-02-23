@@ -449,14 +449,20 @@ public class InternalClientWorker : BackgroundService
         _logger.LogInformation("Applying edit: {args}", args);
 
         if (args.ValueKind != JsonValueKind.Object) return;
-
-        var folder = args.GetProperty("path").GetString();
+        var uuid = args.GetProperty("uuid").GetString();
         var action = args.GetProperty("action").GetString();
         var target = args.GetProperty("target").GetString();
         var value = args.TryGetProperty("value", out var valProp) ? valProp.GetString() : null;
 
-        var objDir = Path.Combine(_unpackedPath, folder);
-        if (!Directory.Exists(objDir)) return;
+        // Search for folder containing UUID in its name
+        var objDir = Directory.GetDirectories(_unpackedPath, "*", SearchOption.AllDirectories)
+            .FirstOrDefault(dir => Path.GetFileName(dir).Contains(uuid));
+
+        if (objDir == null) return;
+        var folder = Path.GetFileName(objDir);
+
+        _logger.LogInformation("Found object directory: {objDir}", objDir);
+        
 
         // Find the instance in _currentPlace
         var name = folder.Split('.')[0];

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a1711a8e2a50fab65f12393e213e5e8d128d912b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2f632e4ac6bc2465cb2b3e937f6b0bb74c443635")]
 [assembly: System.Reflection.AssemblyProductAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
