@@ -446,6 +446,8 @@ public class InternalClientWorker : BackgroundService
         // target: property or script
         // value: new value
 
+        _logger.LogInformation("Applying edit: {args}", args);
+
         if (args.ValueKind != JsonValueKind.Object) return;
 
         var folder = args.GetProperty("path").GetString();
