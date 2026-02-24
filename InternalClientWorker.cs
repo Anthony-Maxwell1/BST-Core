@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -46,12 +47,55 @@ public class InternalClientWorker : BackgroundService
     private async void OnUnpackedFileChanged(object sender, FileSystemEventArgs e)
     {
         if (_currentPlace == null || _closing) return;
-
         // Ignore events that aren't for a specific file we care about
         var fileName = Path.GetFileName(e.FullPath);
+        if (Directory.Exists(fileName))
+        {
+            if (e.ChangeType == WatcherChangeTypes.Deleted)
+            {
+                // If a directory is deleted, we should remove the corresponding instance
+                var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
+                var parts = relativePath.Split(Path.DirectorySeparatorChar);
+                if (parts.Length < 2) return;
+
+                var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
+                var nameParts = folderName.Split('.');
+                if (nameParts.Length < 2) return;
+
+                var name = nameParts[0];
+                var className = nameParts[1];
+                var id = nameParts[2];
+
+                var instance = _currentPlace
+                    .GetDescendants()
+                    .FirstOrDefault(x => x.UniqueId.ToString() == id);
+
+                instance?.Destroy();
+            } else if (e.ChangeType == WatcherChangeTypes.Created)
+            {
+                // If a directory is created, we should create the corresponding instance
+                var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
+                var parts = relativePath.Split(Path.DirectorySeparatorChar);
+                if (parts.Length < 2) return;
+
+                var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
+                var nameParts = folderName.Split('.');
+                if (nameParts.Length < 2) return;
+
+                var name = nameParts[0];
+                var className = nameParts[1];
+                var id = nameParts[2];
+
+                // to implement
+            }
+            return;
+        }
         if (fileName != "properties.yaml" && fileName != "code.lua")
             return;
-
+        
+        if (e.ChangeType == WatcherChangeTypes.Renamed)
+            return;
+        
         try
         {
             var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
@@ -61,18 +105,21 @@ public class InternalClientWorker : BackgroundService
             // parts[0] = instance folder, parts[1] = filename
             if (parts.Length < 2) return;
 
-            var folderName = parts[0];
+            var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
             var nameParts = folderName.Split('.');
             if (nameParts.Length < 2) return;
 
             var name = nameParts[0];
             var className = nameParts[1];
+            var id = nameParts[2];
 
             var instance = _currentPlace
                 .GetDescendants()
-                .FirstOrDefault(x => x.Name == name && x.ClassName == className);
+                .FirstOrDefault(x => x.UniqueId.ToString() == id);
 
             if (instance == null) return;
+
+            _logger.LogInformation("Found instance {name}.{className}", name, className);
 
             // Small delay to let the file finish writing
             await Task.Delay(100);
@@ -97,6 +144,8 @@ public class InternalClientWorker : BackgroundService
             else if (fileName == "code.lua")
             {
                 var code = await File.ReadAllTextAsync(e.FullPath);
+                _logger.LogInformation("Read code from file {file}", e.FullPath);
+                _logger.LogInformation("Found Source property: {found}", instance.Properties.TryGetValue("Source", out var prop_));
                 if (instance.Properties.TryGetValue("Source", out var prop))
                     prop.Value = code;
             }
@@ -348,7 +397,7 @@ public class InternalClientWorker : BackgroundService
 
     private async Task UnpackInstanceAsync(Instance obj, string parentPath)
     {
-        var folderName = $"{SanitizeFolderName(obj.Name)}.{obj.ClassName}.{Guid.NewGuid()}";
+        var folderName = $"{SanitizeFolderName(obj.Name)}.{obj.ClassName}.{obj.UniqueId}";
         var folderPath = Path.Combine(parentPath, folderName);
         Directory.CreateDirectory(folderPath);
 
