@@ -49,51 +49,54 @@ public class InternalClientWorker : BackgroundService
         if (_currentPlace == null || _closing) return;
         // Ignore events that aren't for a specific file we care about
         var fileName = Path.GetFileName(e.FullPath);
-        if (Directory.Exists(fileName))
+        var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
+        if (e.ChangeType == WatcherChangeTypes.Deleted)
         {
-            if (e.ChangeType == WatcherChangeTypes.Deleted)
-            {
-                // If a directory is deleted, we should remove the corresponding instance
-                var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
-                var parts = relativePath.Split(Path.DirectorySeparatorChar);
-                if (parts.Length < 2) return;
+            if (!e.FullPath.EndsWith(".yaml")) return;
+            // If a directory is deleted, we should remove the corresponding instance
+            var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
+            var parts = relativePath.Split(Path.DirectorySeparatorChar);
+            if (parts.Length < 2) return;
 
-                var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
-                var nameParts = folderName.Split('.');
-                if (nameParts.Length < 2) return;
+            var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
+            var nameParts = folderName.Split('.');
+            if (nameParts.Length < 3) return;
 
-                var name = nameParts[0];
-                var className = nameParts[1];
-                var id = nameParts[2];
+            var name = nameParts[0];
+            var className = nameParts[1];
+            var id = nameParts[2];
 
-                var instance = _currentPlace
-                    .GetDescendants()
-                    .FirstOrDefault(x => x.UniqueId.ToString() == id);
+            var instance = _currentPlace
+                .GetDescendants()
+                .FirstOrDefault(x => x.UniqueId.ToString() == id);
 
-                instance?.Destroy();
-            } else if (e.ChangeType == WatcherChangeTypes.Created)
-            {
-                // If a directory is created, we should create the corresponding instance
-                var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
-                var parts = relativePath.Split(Path.DirectorySeparatorChar);
-                if (parts.Length < 2) return;
-
-                var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
-                var nameParts = folderName.Split('.');
-                if (nameParts.Length < 2) return;
-
-                var name = nameParts[0];
-                var className = nameParts[1];
-                var id = nameParts[2];
-
-                // to implement
-            }
+            instance?.Destroy();
+            _logger.LogInformation("Destroyed instance {name}.{className}", name, className);
             return;
         }
+        if (e.ChangeType == WatcherChangeTypes.Created)
+        {
+            // If a directory is created, we should create the corresponding instance
+            var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
+            var parts = relativePath.Split(Path.DirectorySeparatorChar);
+            if (parts.Length < 2) return;
+
+            var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
+            var nameParts = folderName.Split('.');
+            if (nameParts.Length < 2) return;
+
+            var name = nameParts[0];
+            var className = nameParts[1];
+            var id = nameParts[2];
+
+            // to implement
+            return;
+        }
+        _currentPlace.Save(projectFile);
         if (fileName != "properties.yaml" && fileName != "code.lua")
             return;
         
-        if (e.ChangeType == WatcherChangeTypes.Renamed)
+        if (e.ChangeType == WatcherChangeTypes.Renamed) // We can safely know that these files should never be changed other than modified.
             return;
         
         try
@@ -151,6 +154,7 @@ public class InternalClientWorker : BackgroundService
             }
 
             _logger.LogInformation("Updated instance {name}.{className} from {file}", name, className, fileName);
+            _currentPlace.Save(projectFile);
         }
         catch (Exception ex)
         {
@@ -434,8 +438,10 @@ public class InternalClientWorker : BackgroundService
 
         Directory.CreateDirectory(_unpackedPath);
 
+        File.Copy(projectFile, "./temp/project.rbxl");
+
         // Load RBXL
-        _currentPlace = RobloxFile.Open(projectFile);
+        _currentPlace = RobloxFile.Open("./temp/project.rbxl");
 
         // Start recursion at root
         foreach (var child in _currentPlace.GetChildren())
@@ -473,6 +479,9 @@ public class InternalClientWorker : BackgroundService
             // Clear unpacked
             if (Directory.Exists(_unpackedPath))
                 Directory.Delete(_unpackedPath, recursive: true);
+
+            if (File.Exists("./temp/project.rbxl"))
+                File.Delete("./temp/project.rbxl");
 
             _projectOpen = false;
             _currentProject = null;
