@@ -1,5 +1,19 @@
 # Better Studio Tools (BST)
 
+We recommend:
+1. Installing the VS Code client [here](https://github.com/Anthony-Maxwell1/BST-VS-Code)
+2. Installing the Roblox Studio Client [here](https://github.com/Anthony-Maxwell1/BST-Studio)
+3. Installing the CLI, that manages the core (note that the VS Code client installs this for you, there is no need to install this if you are using the VS Code Cliente). [here](https://github.com/Anthony-Maxwell1/BST-Cli)
+
+Related Projects:
+- [Roblox-File-Format, ported to .NET 10 by me](https://github.com/Anthony-Maxwell1/Roblox-File-Format)
+- [Original Project by MaximumADHD before .NET 5.0 (not cross-platform), updated alongside Roblox's clients via Roblox Client Tracker](https://github.com/MaximumADHD/Roblox-File-Format)
+- [VS Code Client](https://github.com/Anthony-Maxwell1/BST-VS-Code)
+- [Roblox Studio Client](https://github.com/Anthony-Maxwell1/BST-Studio)
+- [CLI (Small client, doesn't support most features that a normal client would. Rather, it can control git features, and manages the core for you)](https://github.com/Anthony-Maxwell1/BST-Cli)
+
+## Technical Overview
+Below is the technical overview, not needed for most users, however provides insight into how the project works.
 ## Internal Client & Packet Documentation
 
 ### Overview
