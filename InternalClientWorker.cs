@@ -49,7 +49,7 @@ public class InternalClientWorker : BackgroundService
         if (_currentPlace == null || _closing) return;
         // Ignore events that aren't for a specific file we care about
         var fileName = Path.GetFileName(e.FullPath);
-        var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
+        var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
         if (e.ChangeType == WatcherChangeTypes.Deleted)
         {
             if (!e.FullPath.EndsWith(".yaml")) return;
@@ -71,6 +71,19 @@ public class InternalClientWorker : BackgroundService
                 .FirstOrDefault(x => x.UniqueId.ToString() == id);
 
             instance?.Destroy();
+
+            await SendAsync(_ws, json: new Dictionary<string, object>
+            {
+                { "type", "edit" },
+                { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
+                { "args", new Dictionary<string, object>
+                    {
+                        { "action", "delete" },
+                        { "target", "instance" },
+                        { "uuid", id }
+                    }
+                }
+            });
             _logger.LogInformation("Destroyed instance {name}.{className}", name, className);
             return;
         }
@@ -88,6 +101,19 @@ public class InternalClientWorker : BackgroundService
             var name = nameParts[0];
             var className = nameParts[1];
             var id = nameParts[2];
+
+            // await SendAsync(_ws, json: new Dictionary<string, object>
+            // {
+            //     { "type", "edit" },
+            //     { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
+            //     { "args", new Dictionary<string, object>
+            //         {
+            //             { "action", "delete" },
+            //             { "target", "instance" },
+            //             { "uuid", id }
+            //         }
+            //     }
+            // });
 
             // to implement
             return;
@@ -143,6 +169,19 @@ public class InternalClientWorker : BackgroundService
                         }
                     }
                 }
+                await SendAsync(_ws, json: new Dictionary<string, object>
+                {
+                    { "type", "edit-relay" },
+                    { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
+                    { "args", new Dictionary<string, object>
+                        {
+                            { "action", "modify" },
+                            { "target", "property" },
+                            { "uuid", id },
+                            { "value", props } // send all properties for simplicity
+                        }
+                    }
+                });
             }
             else if (fileName == "code.lua")
             {
@@ -200,7 +239,7 @@ public class InternalClientWorker : BackgroundService
                     _currentProject = nameObj.ToString();
                     _projectOpen = true;
 
-                    var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
+                    var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
                     if (File.Exists(projectFile))
                     {
                         _currentPlace = RobloxFile.Open(projectFile);
@@ -270,7 +309,7 @@ public class InternalClientWorker : BackgroundService
 
     private async Task ListProjects(string id)
     {
-        var projectDir = "./projects";
+        var projectDir = Path.Combine(AppContext.BaseDirectory, "projects");
         var projects = new List<string>();
 
         if (Directory.Exists(projectDir))
@@ -294,6 +333,11 @@ public class InternalClientWorker : BackgroundService
         {
             using var doc = JsonDocument.Parse(msg);
             var root = doc.RootElement;
+
+            if (root.TryGetProperty("id", out var idProp_) && idProp_.GetString().StartsWith("internalignore-"))
+            {
+                return;
+            }
 
             if (!root.TryGetProperty("type", out var typeProp))
                 return;
@@ -424,7 +468,7 @@ public class InternalClientWorker : BackgroundService
 
     private async Task OpenProject(string projectName, string id)
     {
-        var projectFile = Path.Combine("./projects", projectName + ".rbxl");
+        var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", projectName + ".rbxl");
         _logger.LogInformation("Opening project {projectName}", projectName);
         if (!File.Exists(projectFile))
         {
@@ -438,10 +482,15 @@ public class InternalClientWorker : BackgroundService
 
         Directory.CreateDirectory(_unpackedPath);
 
-        File.Copy(projectFile, "./temp/project.rbxl");
+        if (Directory.Exists(Path.Combine(AppContext.BaseDirectory, "temp")))
+            Directory.Delete(Path.Combine(AppContext.BaseDirectory, "temp"), recursive: true);
+
+        Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "temp"));
+
+        File.Copy(projectFile, Path.Combine(AppContext.BaseDirectory, "temp/project.rbxl"));
 
         // Load RBXL
-        _currentPlace = RobloxFile.Open("./temp/project.rbxl");
+        _currentPlace = RobloxFile.Open(Path.Combine(AppContext.BaseDirectory, "temp/project.rbxl"));
 
         // Start recursion at root
         foreach (var child in _currentPlace.GetChildren())
@@ -473,15 +522,15 @@ public class InternalClientWorker : BackgroundService
         {
             _closing = true;
             // Repack RBXL
-            var projectFile = Path.Combine("./projects", _currentProject + ".rbxl");
+            var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
             _currentPlace.Save(projectFile);
 
             // Clear unpacked
             if (Directory.Exists(_unpackedPath))
                 Directory.Delete(_unpackedPath, recursive: true);
 
-            if (File.Exists("./temp/project.rbxl"))
-                File.Delete("./temp/project.rbxl");
+            if (File.Exists(Path.Combine(AppContext.BaseDirectory, "project.rbxl")))
+                File.Delete(Path.Combine(AppContext.BaseDirectory, "project.rbxl"));
 
             _projectOpen = false;
             _currentProject = null;

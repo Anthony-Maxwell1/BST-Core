@@ -1,11 +1,13 @@
 # Better Studio Tools (BST)
 
 We recommend:
+
 1. Installing the VS Code client [here](https://github.com/Anthony-Maxwell1/BST-VS-Code)
 2. Installing the Roblox Studio Client [here](https://github.com/Anthony-Maxwell1/BST-Studio)
 3. Installing the CLI, that manages the core (note that the VS Code client installs this for you, there is no need to install this if you are using the VS Code Cliente). [here](https://github.com/Anthony-Maxwell1/BST-Cli)
 
 Related Projects:
+
 - [Roblox-File-Format, ported to .NET 10 by me](https://github.com/Anthony-Maxwell1/Roblox-File-Format)
 - [Original Project by MaximumADHD before .NET 5.0 (not cross-platform), updated alongside Roblox's clients via Roblox Client Tracker](https://github.com/MaximumADHD/Roblox-File-Format)
 - [VS Code Client](https://github.com/Anthony-Maxwell1/BST-VS-Code)
@@ -13,7 +15,9 @@ Related Projects:
 - [CLI (Small client, doesn't support most features that a normal client would. Rather, it can control git features, and manages the core for you)](https://github.com/Anthony-Maxwell1/BST-Cli)
 
 ## Technical Overview
+
 Below is the technical overview, not needed for most users, however provides insight into how the project works.
+
 ## Internal Client & Packet Documentation
 
 ### Overview
@@ -34,7 +38,7 @@ All communication uses JSON packets with the following general structure:
 
 ```json
 {
-  "type": "cli" | "edit" | "response",
+  "type": "cli" | "edit" | "edit-relay" | "response", // For a regular client that has access to the file system on which unpacked is available, edit-relay should be of no concern. More on that later
   "id": "<string>",         // Optional: request/response ID
   "command": "<string>",    // Required for CLI packets
   "args": { ... }           // Optional arguments
@@ -45,6 +49,7 @@ All communication uses JSON packets with the following general structure:
   - `"cli"` — control commands.
   - `"edit"` — edit actions for the unpacked project.
   - `"response"` — sent back by the client with status or results.
+  - `"edit-relay"` — When an Instance is modified, the internal client will relay the change.
 
 - `id` — used to match responses to requests.
 - `command` — specifies the CLI operation.
@@ -91,6 +96,14 @@ Used to apply live edits to an open project. The `args` object must include:
 | `modify` | `script`   | `{ "path": "Script.Script.456", "action": "modify", "target": "script", "value": "print('Hello')" }`                 | Modifies the `Source` of a script. Updates `code.lua`.                          |
 | `delete` | n/a        | `{ "path": "Part.Model.123", "action": "delete" }`                                                                   | Deletes the instance and its corresponding unpacked folder.                     |
 | `create` | n/a        | TBD                                                                                                                  | Optional: create a new instance (not yet implemented).                          |
+
+## Edit Relay Packets (`type: "edit"`)
+
+Used for clients without access to the file system, such as the roblox studio client.
+
+- `uuid` — The uuid. This can then be looked up, if no access to the file system (WIP)
+- `value` — Full new value of file (For properties, this is a dictionary, for script this is string.)
+  The rest of the values (excluding path and value) are shared with Edit Packets
 
 **Example Response Packet** (edit applied):
 
