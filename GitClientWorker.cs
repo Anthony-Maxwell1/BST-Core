@@ -7,6 +7,7 @@ public class GitClientWorker : BackgroundService
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 }

@@ -10,10 +10,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("dotnet-BST_Core-5c0e7862-54cd-496f-9a79-281f62d3a712")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0a4aa53941000b7ceb803ccaea23e9329019ed1b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5af78b8870ca376e8476e60964e24a56de24cee5")]
 [assembly: System.Reflection.AssemblyProductAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BST-Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
