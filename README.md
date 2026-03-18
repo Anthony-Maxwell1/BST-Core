@@ -38,7 +38,7 @@ All communication uses JSON packets with the following general structure:
 
 ```json
 {
-  "type": "cli" | "edit" | "edit-relay" | "response", // For a regular client that has access to the file system on which unpacked is available, edit-relay should be of no concern. More on that later
+  "type": "cli" | "edit" | "edit-relay" | "response" | "git", // For a regular client that has access to the file system on which unpacked is available, edit-relay should be of no concern. More on that later
   "id": "<string>",         // Optional: request/response ID
   "command": "<string>",    // Required for CLI packets
   "args": { ... }           // Optional arguments
@@ -49,7 +49,8 @@ All communication uses JSON packets with the following general structure:
   - `"cli"` — control commands.
   - `"edit"` — edit actions for the unpacked project.
   - `"response"` — sent back by the client with status or results.
-  - `"edit-relay"` — When an Instance is modified, the internal client will relay the change.
+  - `"edit-relay"` — when an Instance is modified, the internal client will relay the change.
+  - `"git"` — triggers git actions in the GitClientWorker
 
 - `id` — used to match responses to requests.
 - `command` — specifies the CLI operation.
@@ -97,7 +98,7 @@ Used to apply live edits to an open project. The `args` object must include:
 | `delete` | n/a        | `{ "path": "Part.Model.123", "action": "delete" }`                                                                   | Deletes the instance and its corresponding unpacked folder.                     |
 | `create` | n/a        | TBD                                                                                                                  | Optional: create a new instance (not yet implemented).                          |
 
-## Edit Relay Packets (`type: "edit"`)
+## Edit Relay Packets (`type: "edit-relay"`)
 
 Used for clients without access to the file system, such as the roblox studio client.
 
@@ -116,6 +117,10 @@ Used for clients without access to the file system, such as the roblox studio cl
   "action": "modify"
 }
 ```
+
+## Git packets
+
+[WIP]
 
 ---
 
