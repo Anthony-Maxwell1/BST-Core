@@ -7,6 +7,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddHostedService<MainWebSocketWorker>();
         services.AddHostedService<InternalClientWorker>();
         services.AddHostedService<GitClientWorker>();
+        services.AddHostedService<CloudClientWorker>();
     })
     .Build();
 
