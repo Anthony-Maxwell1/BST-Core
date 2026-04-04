@@ -38,7 +38,7 @@ All communication uses JSON packets with the following general structure:
 
 ```json
 {
-  "type": "cli" | "edit" | "edit-relay" | "response" | "git", // For a regular client that has access to the file system on which unpacked is available, edit-relay should be of no concern. More on that later
+  "type": "cli" | "edit" | "edit-relay" | "response" | "git" | "cloud", // For a regular client that has access to the file system on which unpacked is available, edit-relay should be of no concern. More on that later
   "id": "<string>",         // Optional: request/response ID
   "command": "<string>",    // Required for CLI packets
   "args": { ... }           // Optional arguments

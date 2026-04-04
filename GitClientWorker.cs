@@ -9,49 +9,6 @@ public class GitClientWorker : BackgroundService
     private readonly ILogger<GitClientWorker> _logger;
     private ClientWebSocket _ws;
 
-    // -------------------------------------------------------------------------
-    // Repository helpers
-    // -------------------------------------------------------------------------
-
-    private static Repository OpenOrClone(string path, string remoteUrl = null)
-    {
-        if (Repository.IsValid(path))
-            return new Repository(path);
-
-        if (!string.IsNullOrEmpty(remoteUrl))
-        {
-            Repository.Clone(remoteUrl, path);
-            return new Repository(path);
-        }
-
-        throw new Exception("No valid repository found and no remote URL provided.");
-    }
-
-    private static Repository CreateRepository(string path)
-    {
-        Repository.Init(path);
-        return new Repository(path);
-    }
-
-    private static void AddRemote(Repository repo, string name, string url)
-    {
-        var existing = repo.Network.Remotes[name];
-        if (existing == null)
-            repo.Network.Remotes.Add(name, url);
-        else
-            repo.Network.Remotes.Update(name, r => r.Url = url);
-    }
-
-    private static void Commit(Repository repo, string message, string name, string email)
-    {
-        var author = new Signature(name, email, DateTimeOffset.Now);
-
-        if (!repo.RetrieveStatus().IsDirty)
-            return;
-
-        repo.Commit(message, author, author);
-    }
-
     private static CredentialsHandler GetCredentials(string username, string password) =>
         (_url, _user, _cred) => new UsernamePasswordCredentials
         {
@@ -151,54 +108,6 @@ public class GitClientWorker : BackgroundService
                 queue.Enqueue(sub);
         }
         return null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Action: create a brand-new repo (local init)
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Creates a fresh local repository at repos/{uuid} with the standard structure and README.
-    /// Returns the uuid that was generated.
-    /// </summary>
-    private string HandleCreateRepo(string remoteUrl, string remoteName,
-                                    string gitUsername, string gitPassword)
-    {
-        var uuid = Guid.NewGuid().ToString();
-        var repoPath = Path.Combine(ReposRoot, uuid);
-        Directory.CreateDirectory(repoPath);
-
-        var repo = CreateRepository(repoPath);
-
-        // Required subdirectories
-        Directory.CreateDirectory(Path.Combine(repoPath, "BST"));
-        Directory.CreateDirectory(Path.Combine(repoPath, "project"));
-
-        // README
-        var readmePath = Path.Combine(repoPath, "README.md");
-        File.WriteAllText(readmePath,
-            "# Read-only mirror\n\n" +
-            "This repository is intended for online consumption and **must not be edited manually** — " +
-            "any changes will be lost on the next push.\n\n" +
-            "To update the project, re-upload the place file into the `BST/` folder via the client. " +
-            "`BST/` must contain **only one file**.\n");
-
-        StageAll(repo);
-
-        var author = new Signature("GitClient", "gitclient@localhost", DateTimeOffset.Now);
-        repo.Commit("Initial commit", author, author);
-
-        if (!string.IsNullOrEmpty(remoteUrl))
-        {
-            AddRemote(repo, remoteName ?? "origin", remoteUrl);
-            var creds = GetCredentials(gitUsername, gitPassword);
-            Push(repo, remoteName ?? "origin",
-                 repo.Head.FriendlyName,
-                 creds);
-        }
-
-        repo.Dispose();
-        return uuid;
     }
 
     // -------------------------------------------------------------------------
