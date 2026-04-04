@@ -1,0 +1,11 @@
+$kind: websocket-message
+content: |-
+  {
+      "command": "auth",
+      "type": "cloud",
+      "id": "test5",
+      "args": {
+      }
+  }
+contentType: json
+order: 1000

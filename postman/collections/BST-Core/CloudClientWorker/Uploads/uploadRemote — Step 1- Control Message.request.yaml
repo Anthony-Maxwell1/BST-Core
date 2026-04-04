@@ -1,0 +1,5 @@
+$kind: websocket-request
+name: "uploadRemote — Step 1: Control Message"
+url: "{{WS_URL}}"
+messages: ./.resources/uploadRemote — Step 1- Control Message.resources/messages
+order: 4000

@@ -1,0 +1,16 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "cloud",
+      "command": "uploadByFile",
+      "id": "test20",
+      "args": {
+          "filePath": "{{FILE_PATH}}",
+          "name": "Test Image",
+          "assetType": "Image",
+          "creatorId": {{CREATOR_ID}},
+          "creatorIsCommunity": false
+      }
+  }
+contentType: json
+order: 1000

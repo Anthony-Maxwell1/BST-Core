@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net.WebSockets;
 using System.Text;
@@ -8,9 +9,9 @@ using RoSharp.API.Assets;
 using RoSharp.API.Assets.Experiences;
 using RoSharp.API.Communities;
 
-public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundService
+public class CloudClientWorker(ILogger<CloudClientWorker> logger) : BackgroundService
 {
-    private readonly ILogger<GitClientWorker> _logger = logger;
+    private readonly ILogger<CloudClientWorker> _logger = logger;
     private ClientWebSocket? _ws;
     private Session session = new Session();
 
@@ -302,7 +303,7 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
         // --- TYPE (optional, but recommended) ---
         string? type = root.TryGetProperty("type", out var typeEl) ? typeEl.GetString() : null;
 
-        if (type != "cli")
+        if (type != "cloud")
         {
             _logger.LogWarning("Unsupported or missing type: {type}", type);
             return;
@@ -316,6 +317,15 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
         }
 
         string command = commandEl.GetString() ?? string.Empty;
+        string returnId;
+        if (root.TryGetProperty("id", out var idEl))
+        {
+            returnId = idEl.GetString() ?? string.Empty;
+        }
+        else
+        {
+            returnId = string.Empty;
+        }
 
         // --- ARGS ---
         JsonElement args = root.TryGetProperty("args", out var argsEl) ? argsEl : default;
@@ -326,8 +336,17 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
             {
                 string? apiKey = args.TryGetProperty("apiKey", out var k) ? k.GetString() : null;
                 string? code = args.TryGetProperty("code", out var c) ? c.GetString() : null;
+                _logger.LogInformation("Authenticating...");
 
-                await Auth(apiKey, code);
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "success", await Auth(apiKey, code) },
+                    }
+                );
                 break;
             }
 
@@ -340,6 +359,17 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 User? user = await FetchUser(id, username);
                 _logger.LogInformation("Fetched user: {user}", user?.Username ?? "(null)");
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "userId", user?.Id },
+                        { "username", user?.Username },
+                        { "displayName", user?.DisplayName },
+                    }
+                );
                 break;
             }
 
@@ -349,6 +379,17 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 Asset? asset = await FetchAsset(id);
                 _logger.LogInformation("Fetched asset: {asset}", asset?.Name ?? "(null)");
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "assetId", asset?.Id },
+                        { "name", asset?.Name },
+                        { "assetType", asset?.AssetType },
+                    }
+                );
                 break;
             }
 
@@ -361,6 +402,16 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 Experience? exp = await FetchExperience(universeId, placeId);
                 _logger.LogInformation("Fetched experience: {exp}", exp?.Name ?? "(null)");
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "universeId", exp?.UniverseId },
+                        { "name", exp?.Name },
+                    }
+                );
                 break;
             }
 
@@ -373,6 +424,16 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                 _logger.LogInformation(
                     "Fetched community: {community}",
                     community?.Name ?? "(null)"
+                );
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "communityId", community?.Id },
+                        { "name", community?.Name },
+                    }
                 );
                 break;
             }
@@ -403,6 +464,16 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 Role? role = await CommunityFetchRole(members, user, userId, username);
                 _logger.LogInformation("Role in community: {role}", role?.Name ?? "(null)");
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "roleName", role?.Name },
+                        { "roleRank", role?.Rank },
+                    }
+                );
                 break;
             }
 
@@ -444,6 +515,15 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 bool ok = await CommunitySetRole(members, role, user, userId, username);
                 _logger.LogInformation("Set role result: {ok}", ok);
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "success", ok },
+                    }
+                );
                 break;
             }
 
@@ -479,6 +559,15 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                     "uploadByFile: new asset ID = {assetId}",
                     assetId?.ToString() ?? "(pending moderation)"
                 );
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "assetId", assetId },
+                    }
+                );
                 break;
             }
 
@@ -506,7 +595,17 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                     creatorId.Value,
                     creatorIsCommunity
                 );
+
                 _logger.LogInformation("uploadRemote: ready — send binary next");
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "response" },
+                        { "id", returnId },
+                        { "readyForFile", true },
+                    }
+                );
                 break;
             }
 
@@ -514,6 +613,33 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                 _logger.LogWarning("Unknown command: {command}", command);
                 break;
         }
+    }
+
+    private static async Task SendAsync(
+        ClientWebSocket ws,
+        string message = null,
+        Dictionary<string, object> json = null
+    )
+    {
+        string payload;
+
+        if (json != null)
+        {
+            payload = JsonSerializer.Serialize(json);
+        }
+        else if (!string.IsNullOrEmpty(message))
+        {
+            payload = message;
+        }
+        else
+        {
+            throw new ArgumentException("Either message or json must be provided");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(payload);
+        var segment = new ArraySegment<byte>(bytes);
+
+        await ws.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -524,7 +650,7 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
             {
                 _ws = new ClientWebSocket();
                 await _ws.ConnectAsync(new Uri("ws://localhost:5000"), stoppingToken);
-                _logger.LogInformation("Git client connected");
+                _logger.LogInformation("Cloud client connected");
 
                 var buffer = new byte[65536];
                 while (_ws.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
@@ -574,7 +700,7 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Git client disconnected, retrying in 5s...");
+                _logger.LogError(ex, "Cloud client disconnected, retrying in 5s...");
                 await Task.Delay(5000, stoppingToken);
             }
         }

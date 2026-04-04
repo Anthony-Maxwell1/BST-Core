@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "cloud",
+      "command": "fetchUser",
+      "id": "test6",
+      "args": {
+          "id": {{USER_ID}}
+      }
+  }
+contentType: json
+order: 1000

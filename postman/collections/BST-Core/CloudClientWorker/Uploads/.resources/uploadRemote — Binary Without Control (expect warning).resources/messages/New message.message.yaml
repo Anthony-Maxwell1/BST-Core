@@ -1,0 +1,4 @@
+$kind: websocket-message
+content: <Send as Binary frame with no prior uploadRemote control message>
+contentType: base64
+order: 1000

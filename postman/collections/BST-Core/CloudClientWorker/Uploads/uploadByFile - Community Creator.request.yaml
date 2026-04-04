@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/uploadByFile - Community Creator.resources/messages
+order: 2000

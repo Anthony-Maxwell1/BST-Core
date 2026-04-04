@@ -1,0 +1,13 @@
+$kind: websocket-message
+content: |-
+  {
+    "command": "communityGetRole",
+    "type": "cloud",
+    "id": "test15",
+    "args": {
+      "communityId": {{COMMUNITY_ID}},
+      "username": {{USERNAME}}
+    }
+  }
+contentType: json
+order: 1000

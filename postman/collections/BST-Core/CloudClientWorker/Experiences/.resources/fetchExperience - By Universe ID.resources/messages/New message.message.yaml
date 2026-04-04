@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "action": "fetchExperience",
+      "type": "cloud",
+      "id": "test9",
+      "args": {
+          "universeId": {{UNIVERSE_ID}}
+      }
+  }
+contentType: json
+order: 1000

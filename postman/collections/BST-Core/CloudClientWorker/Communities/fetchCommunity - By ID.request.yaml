@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/fetchCommunity - By ID.resources/messages
+order: 1000

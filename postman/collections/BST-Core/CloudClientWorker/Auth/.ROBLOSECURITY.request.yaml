@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/.ROBLOSECURITY.resources/messages
+order: 2000

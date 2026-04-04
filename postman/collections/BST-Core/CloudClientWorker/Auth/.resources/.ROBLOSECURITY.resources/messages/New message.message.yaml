@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "command": "auth",
+      "type": "cloud",
+      "id": "test4",
+      "args": {
+          "code": "{{ROBLOX_COOKIE}}"
+      }
+  }
+contentType: json
+order: 1000

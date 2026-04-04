@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/communityGetRole - Missing Community (warning).resources/messages
+order: 7000

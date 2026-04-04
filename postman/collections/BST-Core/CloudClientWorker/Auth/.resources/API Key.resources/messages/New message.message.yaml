@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "cloud",
+      "command": "auth",
+      "id": "test1",
+      "args": {
+          "apiKey": "{{ROBLOX_API_KEY}}"
+      }
+  }
+contentType: json
+order: 1000

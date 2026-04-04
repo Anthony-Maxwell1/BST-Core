@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/fetchUser - None (null).resources/messages
+order: 3000

@@ -1,0 +1,13 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "cloud",
+      "command": "uploadRemote",
+      "id": "test24",
+      "args": {
+          "name": "Remote Test Image",
+          "creatorId": {{CREATOR_ID}}
+      }
+  }
+contentType: json
+order: 1000

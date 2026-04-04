@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/fetchAsset - No ID (null).resources/messages
+order: 2000

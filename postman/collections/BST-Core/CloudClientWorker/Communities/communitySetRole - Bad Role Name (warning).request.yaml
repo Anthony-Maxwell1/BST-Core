@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/communitySetRole - Bad Role Name (warning).resources/messages
+order: 8000

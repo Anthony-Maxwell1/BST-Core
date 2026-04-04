@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/communitySetRole - By Username.resources/messages
+order: 6000

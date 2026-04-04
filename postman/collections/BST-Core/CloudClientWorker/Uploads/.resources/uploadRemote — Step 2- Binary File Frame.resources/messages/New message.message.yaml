@@ -1,0 +1,4 @@
+$kind: websocket-message
+content: <Send as Binary frame — attach raw file bytes in Postman's WebSocket composer>
+contentType: text
+order: 1000

@@ -1,0 +1,4 @@
+$kind: websocket-request
+url: "{{WS_URL}}"
+messages: ./.resources/uploadRemote — Missing Fields (expect warning).resources/messages
+order: 7000

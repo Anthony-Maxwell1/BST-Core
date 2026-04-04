@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "command": "fetchCommunity",
+      "type": "cloud",
+      "id": "test12",
+      "args": {
+          "id": {{COMMUNITY_ID}}
+      }
+  }
+contentType: json
+order: 1000

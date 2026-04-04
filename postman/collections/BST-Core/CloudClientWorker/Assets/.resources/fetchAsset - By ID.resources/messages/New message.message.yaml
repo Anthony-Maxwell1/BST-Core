@@ -1,0 +1,12 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "cloud",
+      "command": "fetchAsset",
+      "id": "test2",
+      "args": {
+          "id": {{ASSET_ID}}
+      }
+  }
+contentType: json
+order: 1000
