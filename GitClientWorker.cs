@@ -1,8 +1,8 @@
 using System.Net.WebSockets;
-using LibGit2Sharp;
-using LibGit2Sharp.Handlers;
 using System.Text;
 using System.Text.Json;
+using LibGit2Sharp;
+using LibGit2Sharp.Handlers;
 
 public class GitClientWorker : BackgroundService
 {
@@ -10,28 +10,37 @@ public class GitClientWorker : BackgroundService
     private ClientWebSocket _ws;
 
     private static CredentialsHandler GetCredentials(string username, string password) =>
-        (_url, _user, _cred) => new UsernamePasswordCredentials
-        {
-            Username = username,
-            Password = password
-        };
+        (_url, _user, _cred) =>
+            new UsernamePasswordCredentials { Username = username, Password = password };
 
-    private static void Push(Repository repo, string remoteName, string branchName, CredentialsHandler creds)
+    private static void Push(
+        Repository repo,
+        string remoteName,
+        string branchName,
+        CredentialsHandler creds
+    )
     {
         var remote = repo.Network.Remotes[remoteName];
-        repo.Network.Push(remote, $"refs/heads/{branchName}", new PushOptions
-        {
-            CredentialsProvider = creds
-        });
+        repo.Network.Push(
+            remote,
+            $"refs/heads/{branchName}",
+            new PushOptions { CredentialsProvider = creds }
+        );
     }
 
-    private static MergeResult Pull(Repository repo, string name, string email, CredentialsHandler creds)
+    private static MergeResult Pull(
+        Repository repo,
+        string name,
+        string email,
+        CredentialsHandler creds
+    )
     {
         var signature = new Signature(name, email, DateTimeOffset.Now);
-        return Commands.Pull(repo, signature, new PullOptions
-        {
-            FetchOptions = new FetchOptions { CredentialsProvider = creds }
-        });
+        return Commands.Pull(
+            repo,
+            signature,
+            new PullOptions { FetchOptions = new FetchOptions { CredentialsProvider = creds } }
+        );
     }
 
     private static void StageAll(Repository repo) => Commands.Stage(repo, "*");
@@ -43,8 +52,7 @@ public class GitClientWorker : BackgroundService
     /// <summary>
     /// Returns the path to projects/git.json, creating the file if it doesn't exist.
     /// </summary>
-    private string GitJsonPath =>
-        Path.Combine(AppContext.BaseDirectory, "projects", "git.json");
+    private string GitJsonPath => Path.Combine(AppContext.BaseDirectory, "projects", "git.json");
 
     private Dictionary<string, string> LoadGitJson()
     {
@@ -56,14 +64,17 @@ public class GitClientWorker : BackgroundService
 
         var text = File.ReadAllText(path);
         return JsonSerializer.Deserialize<Dictionary<string, string>>(text)
-               ?? new Dictionary<string, string>();
+            ?? new Dictionary<string, string>();
     }
 
     private void SaveGitJson(Dictionary<string, string> map)
     {
         var path = GitJsonPath;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(
+            path,
+            JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true })
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -93,7 +104,8 @@ public class GitClientWorker : BackgroundService
     /// </summary>
     private static string FirstFileInFolder(string folder)
     {
-        if (!Directory.Exists(folder)) return null;
+        if (!Directory.Exists(folder))
+            return null;
 
         // BFS over the directory tree
         var queue = new Queue<string>();
@@ -122,14 +134,14 @@ public class GitClientWorker : BackgroundService
             return;
         }
 
-        var remoteUrl  = remoteUrlProp.GetString();
-        var username   = args.TryGetProperty("username",  out var u) ? u.GetString() : string.Empty;
-        var password   = args.TryGetProperty("password",  out var p) ? p.GetString() : string.Empty;
+        var remoteUrl = remoteUrlProp.GetString();
+        var username = args.TryGetProperty("username", out var u) ? u.GetString() : string.Empty;
+        var password = args.TryGetProperty("password", out var p) ? p.GetString() : string.Empty;
         var projectName = args.TryGetProperty("projectName", out var pn) ? pn.GetString() : null;
 
         Directory.CreateDirectory(ReposRoot);
 
-        var uuid     = Guid.NewGuid().ToString();
+        var uuid = Guid.NewGuid().ToString();
         var repoPath = Path.Combine(ReposRoot, uuid);
 
         try
@@ -162,7 +174,9 @@ public class GitClientWorker : BackgroundService
             }
             else
             {
-                _logger.LogWarning("clone: BST/ folder is empty or does not exist in the cloned repo.");
+                _logger.LogWarning(
+                    "clone: BST/ folder is empty or does not exist in the cloned repo."
+                );
                 if (string.IsNullOrEmpty(projectName))
                     projectName = uuid; // fallback
             }
@@ -172,7 +186,11 @@ public class GitClientWorker : BackgroundService
             map[projectName] = uuid;
             SaveGitJson(map);
 
-            _logger.LogInformation("clone: repo cloned as uuid={uuid}, project={project}", uuid, projectName);
+            _logger.LogInformation(
+                "clone: repo cloned as uuid={uuid}, project={project}",
+                uuid,
+                projectName
+            );
         }
         catch (Exception ex)
         {
@@ -198,14 +216,16 @@ public class GitClientWorker : BackgroundService
             return;
         }
 
-        var projectName    = pnProp.GetString();
-        var commitMessage  = msgProp.GetString();
-        var gitName        = args.TryGetProperty("authorName",  out var an) ? an.GetString() : "GitClient";
-        var gitEmail       = args.TryGetProperty("authorEmail", out var ae) ? ae.GetString() : "gitclient@localhost";
-        var username       = args.TryGetProperty("username",    out var u)  ? u.GetString()  : string.Empty;
-        var password       = args.TryGetProperty("password",    out var pw) ? pw.GetString() : string.Empty;
-        var remoteName     = args.TryGetProperty("remote",      out var r)  ? r.GetString()  : "origin";
-        var branchName     = args.TryGetProperty("branch",      out var b)  ? b.GetString()  : null;
+        var projectName = pnProp.GetString();
+        var commitMessage = msgProp.GetString();
+        var gitName = args.TryGetProperty("authorName", out var an) ? an.GetString() : "GitClient";
+        var gitEmail = args.TryGetProperty("authorEmail", out var ae)
+            ? ae.GetString()
+            : "gitclient@localhost";
+        var username = args.TryGetProperty("username", out var u) ? u.GetString() : string.Empty;
+        var password = args.TryGetProperty("password", out var pw) ? pw.GetString() : string.Empty;
+        var remoteName = args.TryGetProperty("remote", out var r) ? r.GetString() : "origin";
+        var branchName = args.TryGetProperty("branch", out var b) ? b.GetString() : null;
 
         // Look up uuid
         var map = LoadGitJson();
@@ -225,9 +245,12 @@ public class GitClientWorker : BackgroundService
         try
         {
             // a. Copy the project file from projects/ to repos/{uuid}/BST/
-            var projectFile = Directory.GetFiles(ProjectsRoot)
-                                       .FirstOrDefault(f => Path.GetFileNameWithoutExtension(f)
-                                                                .Equals(projectName, StringComparison.OrdinalIgnoreCase));
+            var projectFile = Directory
+                .GetFiles(ProjectsRoot)
+                .FirstOrDefault(f =>
+                    Path.GetFileNameWithoutExtension(f)
+                        .Equals(projectName, StringComparison.OrdinalIgnoreCase)
+                );
             if (projectFile != null)
             {
                 var bstDir = Path.Combine(repoPath, "BST");
@@ -235,11 +258,18 @@ public class GitClientWorker : BackgroundService
                 // Clear existing files so BST contains only one file
                 foreach (var old in Directory.GetFiles(bstDir))
                     File.Delete(old);
-                File.Copy(projectFile, Path.Combine(bstDir, Path.GetFileName(projectFile)), overwrite: true);
+                File.Copy(
+                    projectFile,
+                    Path.Combine(bstDir, Path.GetFileName(projectFile)),
+                    overwrite: true
+                );
             }
             else
             {
-                _logger.LogWarning("commit: no project file found for '{project}' in projects/", projectName);
+                _logger.LogWarning(
+                    "commit: no project file found for '{project}' in projects/",
+                    projectName
+                );
             }
 
             // b. Copy entire unpacked/ structure to repos/{uuid}/project/
@@ -259,7 +289,10 @@ public class GitClientWorker : BackgroundService
             var author = new Signature(gitName, gitEmail, DateTimeOffset.Now);
             if (!repo.RetrieveStatus().IsDirty)
             {
-                _logger.LogInformation("commit: nothing to commit for project '{project}'", projectName);
+                _logger.LogInformation(
+                    "commit: nothing to commit for project '{project}'",
+                    projectName
+                );
                 return;
             }
             repo.Commit(commitMessage, author, author);
@@ -268,11 +301,19 @@ public class GitClientWorker : BackgroundService
             var creds = GetCredentials(username, password);
             Push(repo, remoteName, branchName ?? repo.Head.FriendlyName, creds);
 
-            _logger.LogInformation("commit: pushed project '{project}' (uuid={uuid})", projectName, uuid);
+            _logger.LogInformation(
+                "commit: pushed project '{project}' (uuid={uuid})",
+                projectName,
+                uuid
+            );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "commit: error during commit/push for project '{project}'", projectName);
+            _logger.LogError(
+                ex,
+                "commit: error during commit/push for project '{project}'",
+                projectName
+            );
         }
     }
 
@@ -289,10 +330,12 @@ public class GitClientWorker : BackgroundService
         }
 
         var projectName = pnProp.GetString();
-        var gitName     = args.TryGetProperty("authorName",  out var an) ? an.GetString() : "GitClient";
-        var gitEmail    = args.TryGetProperty("authorEmail", out var ae) ? ae.GetString() : "gitclient@localhost";
-        var username    = args.TryGetProperty("username",    out var u)  ? u.GetString()  : string.Empty;
-        var password    = args.TryGetProperty("password",    out var pw) ? pw.GetString() : string.Empty;
+        var gitName = args.TryGetProperty("authorName", out var an) ? an.GetString() : "GitClient";
+        var gitEmail = args.TryGetProperty("authorEmail", out var ae)
+            ? ae.GetString()
+            : "gitclient@localhost";
+        var username = args.TryGetProperty("username", out var u) ? u.GetString() : string.Empty;
+        var password = args.TryGetProperty("password", out var pw) ? pw.GetString() : string.Empty;
 
         var map = LoadGitJson();
         if (!map.TryGetValue(projectName, out var uuid))
@@ -315,15 +358,21 @@ public class GitClientWorker : BackgroundService
 
             // 1. Fetch and check for upstream changes
             var remote = repo.Network.Remotes["origin"];
-            Commands.Fetch(repo, remote.Name, Array.Empty<string>(), new FetchOptions
-            {
-                CredentialsProvider = creds
-            }, null);
+            Commands.Fetch(
+                repo,
+                remote.Name,
+                Array.Empty<string>(),
+                new FetchOptions { CredentialsProvider = creds },
+                null
+            );
 
             var trackingBranch = repo.Head.TrackedBranch;
             if (trackingBranch == null)
             {
-                _logger.LogWarning("pull: no tracking branch configured for '{project}'", projectName);
+                _logger.LogWarning(
+                    "pull: no tracking branch configured for '{project}'",
+                    projectName
+                );
                 return;
             }
 
@@ -339,14 +388,17 @@ public class GitClientWorker : BackgroundService
 
             if (mergeResult.Status == MergeStatus.Conflicts)
             {
-                _logger.LogError("pull: merge conflict detected for '{project}' — aborting. Manual resolution required.", projectName);
+                _logger.LogError(
+                    "pull: merge conflict detected for '{project}' — aborting. Manual resolution required.",
+                    projectName
+                );
                 // Reset to pre-merge state
                 repo.Reset(ResetMode.Hard, repo.Head.Tip);
                 return;
             }
 
             // 3. Copy the updated project file from BST/ to projects/
-            var bstPath   = Path.Combine(repoPath, "BST");
+            var bstPath = Path.Combine(repoPath, "BST");
             var firstFile = FirstFileInFolder(bstPath);
 
             if (firstFile != null)
@@ -354,11 +406,17 @@ public class GitClientWorker : BackgroundService
                 Directory.CreateDirectory(ProjectsRoot);
                 var destPath = Path.Combine(ProjectsRoot, Path.GetFileName(firstFile));
                 File.Copy(firstFile, destPath, overwrite: true);
-                _logger.LogInformation("pull: updated projects/{file} from remote.", Path.GetFileName(firstFile));
+                _logger.LogInformation(
+                    "pull: updated projects/{file} from remote.",
+                    Path.GetFileName(firstFile)
+                );
             }
             else
             {
-                _logger.LogWarning("pull: BST/ is empty after pull for project '{project}'.", projectName);
+                _logger.LogWarning(
+                    "pull: BST/ is empty after pull for project '{project}'.",
+                    projectName
+                );
             }
         }
         catch (Exception ex)
@@ -391,7 +449,10 @@ public class GitClientWorker : BackgroundService
                 break;
 
             default:
-                _logger.LogWarning("ProcessGitAction: unknown action '{action}'", actionProp.GetString());
+                _logger.LogWarning(
+                    "ProcessGitAction: unknown action '{action}'",
+                    actionProp.GetString()
+                );
                 break;
         }
     }
@@ -400,16 +461,16 @@ public class GitClientWorker : BackgroundService
     {
         try
         {
-            using var doc  = JsonDocument.Parse(msg);
-            var root       = doc.RootElement;
+            using var doc = JsonDocument.Parse(msg);
+            var root = doc.RootElement;
 
             if (!root.TryGetProperty("type", out var typeProp))
                 return;
 
             if (typeProp.GetString() == "git")
             {
-                var id   = root.TryGetProperty("id",   out var idProp)   ? idProp.GetString()  : null;
-                var args = root.TryGetProperty("args", out var argsProp)  ? argsProp            : default;
+                var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+                var args = root.TryGetProperty("args", out var argsProp) ? argsProp : default;
                 await ProcessGitAction(args, id);
             }
         }
@@ -443,7 +504,7 @@ public class GitClientWorker : BackgroundService
                 while (_ws.State == WebSocketState.Open && !stoppingToken.IsCancellationRequested)
                 {
                     var result = await _ws.ReceiveAsync(buffer, stoppingToken);
-                    var msg    = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     await ProcessMessageAsync(msg);
                 }
             }

@@ -25,13 +25,15 @@ public class InternalClientWorker : BackgroundService
 
     private void StartWatchingUnpacked()
     {
-        if (!Directory.Exists(_unpackedPath)) return;
+        if (!Directory.Exists(_unpackedPath))
+            return;
 
         _watcher?.Dispose();
         _watcher = new FileSystemWatcher(_unpackedPath)
         {
             IncludeSubdirectories = true,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
+            NotifyFilter =
+                NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
             // Only watch the specific files we care about
         };
 
@@ -45,21 +47,29 @@ public class InternalClientWorker : BackgroundService
 
     private async void OnUnpackedFileChanged(object sender, FileSystemEventArgs e)
     {
-        if (_currentPlace == null || _closing) return;
+        if (_currentPlace == null || _closing)
+            return;
         // Ignore events that aren't for a specific file we care about
         var fileName = Path.GetFileName(e.FullPath);
-        var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
+        var projectFile = Path.Combine(
+            AppContext.BaseDirectory,
+            "projects",
+            _currentProject + ".rbxl"
+        );
         if (e.ChangeType == WatcherChangeTypes.Deleted)
         {
-            if (!e.FullPath.EndsWith(".yaml")) return;
+            if (!e.FullPath.EndsWith(".yaml"))
+                return;
             // If a directory is deleted, we should remove the corresponding instance
             var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
             var parts = relativePath.Split(Path.DirectorySeparatorChar);
-            if (parts.Length < 2) return;
+            if (parts.Length < 2)
+                return;
 
             var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
             var nameParts = folderName.Split('.');
-            if (nameParts.Length < 3) return;
+            if (nameParts.Length < 3)
+                return;
 
             var name = nameParts[0];
             var className = nameParts[1];
@@ -71,18 +81,23 @@ public class InternalClientWorker : BackgroundService
 
             instance?.Destroy();
 
-            await SendAsync(_ws, json: new Dictionary<string, object>
-            {
-                { "type", "edit" },
-                { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
-                { "args", new Dictionary<string, object>
+            await SendAsync(
+                _ws,
+                json: new Dictionary<string, object>
+                {
+                    { "type", "edit" },
+                    { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
                     {
-                        { "action", "delete" },
-                        { "target", "instance" },
-                        { "uuid", id }
-                    }
+                        "args",
+                        new Dictionary<string, object>
+                        {
+                            { "action", "delete" },
+                            { "target", "instance" },
+                            { "uuid", id },
+                        }
+                    },
                 }
-            });
+            );
             _logger.LogInformation("Destroyed instance {name}.{className}", name, className);
             return;
         }
@@ -91,11 +106,13 @@ public class InternalClientWorker : BackgroundService
             // If a directory is created, we should create the corresponding instance
             var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
             var parts = relativePath.Split(Path.DirectorySeparatorChar);
-            if (parts.Length < 2) return;
+            if (parts.Length < 2)
+                return;
 
             var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
             var nameParts = folderName.Split('.');
-            if (nameParts.Length < 2) return;
+            if (nameParts.Length < 2)
+                return;
 
             var name = nameParts[0];
             var className = nameParts[1];
@@ -120,10 +137,10 @@ public class InternalClientWorker : BackgroundService
         _currentPlace.Save(projectFile);
         if (fileName != "properties.yaml" && fileName != "code.lua")
             return;
-        
+
         if (e.ChangeType == WatcherChangeTypes.Renamed) // We can safely know that these files should never be changed other than modified.
             return;
-        
+
         try
         {
             var relativePath = Path.GetRelativePath(_unpackedPath, e.FullPath);
@@ -131,11 +148,13 @@ public class InternalClientWorker : BackgroundService
 
             // We expect: FolderName/properties.yaml or FolderName/code.lua
             // parts[0] = instance folder, parts[1] = filename
-            if (parts.Length < 2) return;
+            if (parts.Length < 2)
+                return;
 
             var folderName = parts[parts.Length - 2]; // Get the folder name (second-to-last part)
             var nameParts = folderName.Split('.');
-            if (nameParts.Length < 2) return;
+            if (nameParts.Length < 2)
+                return;
 
             var name = nameParts[0];
             var className = nameParts[1];
@@ -145,7 +164,8 @@ public class InternalClientWorker : BackgroundService
                 .GetDescendants()
                 .FirstOrDefault(x => x.UniqueId.ToString() == id);
 
-            if (instance == null) return;
+            if (instance == null)
+                return;
 
             _logger.LogInformation("Found instance {name}.{className}", name, className);
 
@@ -168,30 +188,43 @@ public class InternalClientWorker : BackgroundService
                         }
                     }
                 }
-                await SendAsync(_ws, json: new Dictionary<string, object>
-                {
-                    { "type", "edit-relay" },
-                    { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
-                    { "args", new Dictionary<string, object>
+                await SendAsync(
+                    _ws,
+                    json: new Dictionary<string, object>
+                    {
+                        { "type", "edit-relay" },
+                        { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
                         {
-                            { "action", "modify" },
-                            { "target", "property" },
-                            { "uuid", id },
-                            { "value", props } // send all properties for simplicity
-                        }
+                            "args",
+                            new Dictionary<string, object>
+                            {
+                                { "action", "modify" },
+                                { "target", "property" },
+                                { "uuid", id },
+                                { "value", props }, // send all properties for simplicity
+                            }
+                        },
                     }
-                });
+                );
             }
             else if (fileName == "code.lua")
             {
                 var code = await File.ReadAllTextAsync(e.FullPath);
                 _logger.LogInformation("Read code from file {file}", e.FullPath);
-                _logger.LogInformation("Found Source property: {found}", instance.Properties.TryGetValue("Source", out var prop_));
+                _logger.LogInformation(
+                    "Found Source property: {found}",
+                    instance.Properties.TryGetValue("Source", out var prop_)
+                );
                 if (instance.Properties.TryGetValue("Source", out var prop))
                     prop.Value = code;
             }
 
-            _logger.LogInformation("Updated instance {name}.{className} from {file}", name, className, fileName);
+            _logger.LogInformation(
+                "Updated instance {name}.{className} from {file}",
+                name,
+                className,
+                fileName
+            );
             _currentPlace.Save(projectFile);
         }
         catch (Exception ex)
@@ -203,22 +236,32 @@ public class InternalClientWorker : BackgroundService
     // Coerce a YAML-deserialized value (usually string) to match the existing property type
     private static object CoerceValue(object yamlValue, object existingValue)
     {
-        if (yamlValue == null) return existingValue;
-        if (existingValue == null) return yamlValue;
+        if (yamlValue == null)
+            return existingValue;
+        if (existingValue == null)
+            return yamlValue;
 
         var targetType = existingValue.GetType();
         var strVal = yamlValue.ToString();
 
         try
         {
-            if (targetType == typeof(bool) && bool.TryParse(strVal, out var b)) return b;
-            if (targetType == typeof(int) && int.TryParse(strVal, out var i)) return i;
-            if (targetType == typeof(float) && float.TryParse(strVal, out var f)) return f;
-            if (targetType == typeof(double) && double.TryParse(strVal, out var d)) return d;
-            if (targetType == typeof(long) && long.TryParse(strVal, out var l)) return l;
-            if (targetType == typeof(string)) return strVal;
+            if (targetType == typeof(bool) && bool.TryParse(strVal, out var b))
+                return b;
+            if (targetType == typeof(int) && int.TryParse(strVal, out var i))
+                return i;
+            if (targetType == typeof(float) && float.TryParse(strVal, out var f))
+                return f;
+            if (targetType == typeof(double) && double.TryParse(strVal, out var d))
+                return d;
+            if (targetType == typeof(long) && long.TryParse(strVal, out var l))
+                return l;
+            if (targetType == typeof(string))
+                return strVal;
         }
-        catch { /* fall through */ }
+        catch
+        { /* fall through */
+        }
 
         return yamlValue; // best effort
     }
@@ -238,7 +281,11 @@ public class InternalClientWorker : BackgroundService
                     _currentProject = nameObj.ToString();
                     _projectOpen = true;
 
-                    var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
+                    var projectFile = Path.Combine(
+                        AppContext.BaseDirectory,
+                        "projects",
+                        _currentProject + ".rbxl"
+                    );
                     if (File.Exists(projectFile))
                     {
                         _currentPlace = RobloxFile.Open(projectFile);
@@ -250,7 +297,6 @@ public class InternalClientWorker : BackgroundService
             }
         }
     }
-
 
     public InternalClientWorker(ILogger<InternalClientWorker> logger)
     {
@@ -266,14 +312,17 @@ public class InternalClientWorker : BackgroundService
 
     private async Task SendStatus(string id)
     {
-        await SendAsync(_ws, json: new Dictionary<string, object>
-        {
-            { "type", "response" },
-            { "id", id },
-            { "projectOpen", _projectOpen },
-            { "currentProject", _currentProject ?? "" },
-            { "unpackedPath", _projectOpen ? _unpackedPath : "" }
-        });
+        await SendAsync(
+            _ws,
+            json: new Dictionary<string, object>
+            {
+                { "type", "response" },
+                { "id", id },
+                { "projectOpen", _projectOpen },
+                { "currentProject", _currentProject ?? "" },
+                { "unpackedPath", _projectOpen ? _unpackedPath : "" },
+            }
+        );
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -313,17 +362,21 @@ public class InternalClientWorker : BackgroundService
 
         if (Directory.Exists(projectDir))
         {
-            projects = Directory.GetFiles(projectDir, "*.rbxl")
-                                .Select(f => Path.GetFileNameWithoutExtension(f))
-                                .ToList();
+            projects = Directory
+                .GetFiles(projectDir, "*.rbxl")
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .ToList();
         }
 
-        await SendAsync(_ws, json: new Dictionary<string, object>
-        {
-            { "type", "response" },
-            { "id", id },
-            { "projects", projects }
-        });
+        await SendAsync(
+            _ws,
+            json: new Dictionary<string, object>
+            {
+                { "type", "response" },
+                { "id", id },
+                { "projects", projects },
+            }
+        );
     }
 
     private async Task ProcessMessageAsync(string msg)
@@ -333,7 +386,10 @@ public class InternalClientWorker : BackgroundService
             using var doc = JsonDocument.Parse(msg);
             var root = doc.RootElement;
 
-            if (root.TryGetProperty("id", out var idProp_) && idProp_.GetString().StartsWith("internalignore-"))
+            if (
+                root.TryGetProperty("id", out var idProp_)
+                && idProp_.GetString().StartsWith("internalignore-")
+            )
             {
                 return;
             }
@@ -378,7 +434,10 @@ public class InternalClientWorker : BackgroundService
                 break;
 
             case "open-project":
-                if (args.ValueKind != JsonValueKind.Undefined && args.TryGetProperty("name", out var nameProp))
+                if (
+                    args.ValueKind != JsonValueKind.Undefined
+                    && args.TryGetProperty("name", out var nameProp)
+                )
                 {
                     await OpenProject(nameProp.GetString(), id);
                 }
@@ -413,11 +472,21 @@ public class InternalClientWorker : BackgroundService
 
                 // Special Roblox data types
                 case Vector3 v3:
-                    safeProps[kvp.Key] = new { v3.X, v3.Y, v3.Z };
+                    safeProps[kvp.Key] = new
+                    {
+                        v3.X,
+                        v3.Y,
+                        v3.Z,
+                    };
                     break;
 
                 case CFrame cf:
-                    safeProps[kvp.Key] = new { cf.Position.X, cf.Position.Y, cf.Position.Z };
+                    safeProps[kvp.Key] = new
+                    {
+                        cf.Position.X,
+                        cf.Position.Y,
+                        cf.Position.Z,
+                    };
                     break;
 
                 case ContentId cid:
@@ -453,9 +522,14 @@ public class InternalClientWorker : BackgroundService
         await File.WriteAllTextAsync(Path.Combine(folderPath, "properties.yaml"), propsYaml);
 
         // Save script if any
-        if (obj.ClassName.EndsWith("Script") && obj.Properties.TryGetValue("Source", out var source))
+        if (
+            obj.ClassName.EndsWith("Script") && obj.Properties.TryGetValue("Source", out var source)
+        )
         {
-            await File.WriteAllTextAsync(Path.Combine(folderPath, "code.lua"), source.Value?.ToString() ?? "");
+            await File.WriteAllTextAsync(
+                Path.Combine(folderPath, "code.lua"),
+                source.Value?.ToString() ?? ""
+            );
         }
 
         // Recurse into children
@@ -489,7 +563,9 @@ public class InternalClientWorker : BackgroundService
         File.Copy(projectFile, Path.Combine(AppContext.BaseDirectory, "temp/project.rbxl"));
 
         // Load RBXL
-        _currentPlace = RobloxFile.Open(Path.Combine(AppContext.BaseDirectory, "temp/project.rbxl"));
+        _currentPlace = RobloxFile.Open(
+            Path.Combine(AppContext.BaseDirectory, "temp/project.rbxl")
+        );
 
         // Start recursion at root
         foreach (var child in _currentPlace.GetChildren())
@@ -498,21 +574,26 @@ public class InternalClientWorker : BackgroundService
         }
 
         // Save project metadata
-        await File.WriteAllTextAsync(Path.Combine(_unpackedPath, "project.yaml"),
-            _yamlSerializer.Serialize(new Dictionary<string, object> { { "name", projectName } }));
+        await File.WriteAllTextAsync(
+            Path.Combine(_unpackedPath, "project.yaml"),
+            _yamlSerializer.Serialize(new Dictionary<string, object> { { "name", projectName } })
+        );
 
         _currentProject = projectName;
         _projectOpen = true;
 
         StartWatchingUnpacked();
 
-        await SendAsync(_ws, json: new Dictionary<string, object>
-        {
-            { "type", "response" },
-            { "id", id },
-            { "status", "opened" },
-            { "project", projectName }
-        });
+        await SendAsync(
+            _ws,
+            json: new Dictionary<string, object>
+            {
+                { "type", "response" },
+                { "id", id },
+                { "status", "opened" },
+                { "project", projectName },
+            }
+        );
     }
 
     private async Task CloseCurrentProject(string id)
@@ -521,7 +602,11 @@ public class InternalClientWorker : BackgroundService
         {
             _closing = true;
             // Repack RBXL
-            var projectFile = Path.Combine(AppContext.BaseDirectory, "projects", _currentProject + ".rbxl");
+            var projectFile = Path.Combine(
+                AppContext.BaseDirectory,
+                "projects",
+                _currentProject + ".rbxl"
+            );
             _currentPlace.Save(projectFile);
 
             // Clear unpacked
@@ -537,32 +622,39 @@ public class InternalClientWorker : BackgroundService
             _closing = false;
         }
 
-        await SendAsync(_ws, json: new Dictionary<string, object>
-        {
-            { "type", "response" },
-            { "id", id },
-            { "status", "closed" }
-        });
+        await SendAsync(
+            _ws,
+            json: new Dictionary<string, object>
+            {
+                { "type", "response" },
+                { "id", id },
+                { "status", "closed" },
+            }
+        );
     }
 
     private async Task ApplyEdit(JsonElement args, string id)
     {
         _logger.LogInformation("Applying edit: {args}", args);
 
-        if (args.ValueKind != JsonValueKind.Object) return;
+        if (args.ValueKind != JsonValueKind.Object)
+            return;
 
         var uuid = args.GetProperty("uuid").GetString();
-        if (string.IsNullOrEmpty(uuid)) return;
+        if (string.IsNullOrEmpty(uuid))
+            return;
 
         var action = args.GetProperty("action").GetString();
         var target = args.GetProperty("target").GetString();
         var value = args.TryGetProperty("value", out var valProp) ? valProp.GetString() : null;
 
         // Search for folder containing UUID in its name
-        var objDir = Directory.GetDirectories(_unpackedPath, "*", SearchOption.AllDirectories)
+        var objDir = Directory
+            .GetDirectories(_unpackedPath, "*", SearchOption.AllDirectories)
             .FirstOrDefault(dir => Path.GetFileName(dir).Contains(uuid));
 
-        if (objDir == null) return;
+        if (objDir == null)
+            return;
 
         var folder = Path.GetFileName(objDir);
         _logger.LogInformation("Found object directory: {objDir}", objDir);
@@ -573,10 +665,12 @@ public class InternalClientWorker : BackgroundService
                 if (target == "property" && !string.IsNullOrEmpty(value))
                 {
                     var propName = args.GetProperty("property").GetString();
-                    if (string.IsNullOrEmpty(propName)) break;
+                    if (string.IsNullOrEmpty(propName))
+                        break;
 
                     var propsPath = Path.Combine(objDir, "properties.yaml");
-                    if (!File.Exists(propsPath)) break;
+                    if (!File.Exists(propsPath))
+                        break;
 
                     var lines = await File.ReadAllLinesAsync(propsPath);
 
@@ -599,7 +693,10 @@ public class InternalClientWorker : BackgroundService
                         lines = list.ToArray();
                     }
 
-                    await File.WriteAllTextAsync(propsPath, string.Join(Environment.NewLine, lines));
+                    await File.WriteAllTextAsync(
+                        propsPath,
+                        string.Join(Environment.NewLine, lines)
+                    );
                 }
                 else if (target == "script" && !string.IsNullOrEmpty(value))
                 {
@@ -617,17 +714,24 @@ public class InternalClientWorker : BackgroundService
                 break;
         }
 
-        await SendAsync(_ws, json: new Dictionary<string, object>
-        {
-            { "type", "response" },
-            { "id", id },
-            { "status", "edited" },
-            { "path", folder },
-            { "action", action }
-        });
+        await SendAsync(
+            _ws,
+            json: new Dictionary<string, object>
+            {
+                { "type", "response" },
+                { "id", id },
+                { "status", "edited" },
+                { "path", folder },
+                { "action", action },
+            }
+        );
     }
 
-    private static async Task SendAsync(ClientWebSocket ws, string message = null, Dictionary<string, object> json = null)
+    private static async Task SendAsync(
+        ClientWebSocket ws,
+        string message = null,
+        Dictionary<string, object> json = null
+    )
     {
         string payload;
 

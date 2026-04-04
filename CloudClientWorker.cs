@@ -15,7 +15,13 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
     private Session session = new Session();
 
     // State held between the uploadRemote control message and the binary frame that follows it.
-    private record PendingUpload(string Name, string AssetType, ulong CreatorId, bool CreatorIsCommunity);
+    private record PendingUpload(
+        string Name,
+        string AssetType,
+        ulong CreatorId,
+        bool CreatorIsCommunity
+    );
+
     private PendingUpload? _pendingUpload;
     private string APIKey = string.Empty;
 
@@ -110,7 +116,12 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
     // GetRoleInCommunityAsync returns HttpResult<Role?> — the implicit operator lets us
     // assign directly to Role? without referencing the RoSharp.Http namespace.
-    private async Task<Role?> CommunityFetchRole(MemberManager members, User? user = null, ulong? id = null, string? name = null)
+    private async Task<Role?> CommunityFetchRole(
+        MemberManager members,
+        User? user = null,
+        ulong? id = null,
+        string? name = null
+    )
     {
         Role? result;
         if (user != null)
@@ -132,7 +143,13 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
         return result;
     }
 
-    private async Task<bool> CommunitySetRole(MemberManager members, Role role, User? user = null, ulong? id = null, string? name = null)
+    private async Task<bool> CommunitySetRole(
+        MemberManager members,
+        Role role,
+        User? user = null,
+        ulong? id = null,
+        string? name = null
+    )
     {
         if (user != null)
         {
@@ -167,31 +184,42 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
     // assetType must be the string recognised by the API, e.g. "Image", "Audio", "Decal".
     // creatorId is either a userId or a groupId depending on creatorIsCommunity.
     // Returns the new asset ID on success, or null if the asset is queued for moderation.
-    private async Task<ulong?> UploadAssetAsync(string name, string assetType, ulong creatorId, bool creatorIsCommunity, byte[] fileData)
+    private async Task<ulong?> UploadAssetAsync(
+        string name,
+        string assetType,
+        ulong creatorId,
+        bool creatorIsCommunity,
+        byte[] fileData
+    )
     {
         if (fileData.Length == 0)
             throw new InvalidOperationException("fileData is empty.");
 
-        var requestJson = JsonSerializer.Serialize(new
-        {
-            assetType,
-            displayName = name,
-            description = "",
-            creationContext = new
+        var requestJson = JsonSerializer.Serialize(
+            new
             {
-                creator = new
+                assetType,
+                displayName = name,
+                description = "",
+                creationContext = new
                 {
-                    userId  = creatorIsCommunity ? (ulong?)null : creatorId,
-                    groupId = creatorIsCommunity ? (ulong?)creatorId : (ulong?)null,
-                }
+                    creator = new
+                    {
+                        userId = creatorIsCommunity ? (ulong?)null : creatorId,
+                        groupId = creatorIsCommunity ? (ulong?)creatorId : (ulong?)null,
+                    },
+                },
             }
-        });
+        );
 
         var multipart = new MultipartFormDataContent();
         multipart.Add(new StringContent(requestJson, Encoding.UTF8, "application/json"), "request");
         multipart.Add(new ByteArrayContent(fileData), "fileContent", name);
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, "https://apis.roblox.com/assets/v1/assets");
+        using var req = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://apis.roblox.com/assets/v1/assets"
+        );
         req.Headers.Add("x-api-key", APIKey);
         req.Content = multipart;
 
@@ -207,13 +235,22 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
         // Some asset types go through moderation and return an operation path instead.
         if (doc.RootElement.TryGetProperty("path", out var pathEl))
-            _logger.LogInformation("Upload queued for moderation, operation path: {path}", pathEl.GetString());
+            _logger.LogInformation(
+                "Upload queued for moderation, operation path: {path}",
+                pathEl.GetString()
+            );
 
         return null;
     }
 
     // Reads a file from disk and uploads it.
-    private async Task<ulong?> UploadByFile(string filePath, string name, string assetType, ulong creatorId, bool creatorIsCommunity)
+    private async Task<ulong?> UploadByFile(
+        string filePath,
+        string name,
+        string assetType,
+        ulong creatorId,
+        bool creatorIsCommunity
+    )
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentNullException(nameof(filePath));
@@ -229,12 +266,20 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
     private async Task<ulong?> UploadRemote(byte[] fileData)
     {
         if (_pendingUpload == null)
-            throw new InvalidOperationException("No pending upload — send an uploadRemote control message first.");
+            throw new InvalidOperationException(
+                "No pending upload — send an uploadRemote control message first."
+            );
 
         PendingUpload p = _pendingUpload;
-        _pendingUpload  = null;
+        _pendingUpload = null;
 
-        return await UploadAssetAsync(p.Name, p.AssetType, p.CreatorId, p.CreatorIsCommunity, fileData);
+        return await UploadAssetAsync(
+            p.Name,
+            p.AssetType,
+            p.CreatorId,
+            p.CreatorIsCommunity,
+            fileData
+        );
     }
 
     // ---------------------------------------------------------------------------
@@ -255,9 +300,7 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
         var root = doc.RootElement;
 
         // --- TYPE (optional, but recommended) ---
-        string? type = root.TryGetProperty("type", out var typeEl)
-            ? typeEl.GetString()
-            : null;
+        string? type = root.TryGetProperty("type", out var typeEl) ? typeEl.GetString() : null;
 
         if (type != "cli")
         {
@@ -275,16 +318,14 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
         string command = commandEl.GetString() ?? string.Empty;
 
         // --- ARGS ---
-        JsonElement args = root.TryGetProperty("args", out var argsEl)
-            ? argsEl
-            : default;
+        JsonElement args = root.TryGetProperty("args", out var argsEl) ? argsEl : default;
 
         switch (command)
         {
             case "auth":
             {
                 string? apiKey = args.TryGetProperty("apiKey", out var k) ? k.GetString() : null;
-                string? code   = args.TryGetProperty("code",   out var c) ? c.GetString() : null;
+                string? code = args.TryGetProperty("code", out var c) ? c.GetString() : null;
 
                 await Auth(apiKey, code);
                 break;
@@ -293,7 +334,9 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
             case "fetchUser":
             {
                 ulong? id = args.TryGetProperty("id", out var i) ? i.GetUInt64() : null;
-                string? username = args.TryGetProperty("username", out var u) ? u.GetString() : null;
+                string? username = args.TryGetProperty("username", out var u)
+                    ? u.GetString()
+                    : null;
 
                 User? user = await FetchUser(id, username);
                 _logger.LogInformation("Fetched user: {user}", user?.Username ?? "(null)");
@@ -311,8 +354,10 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
             case "fetchExperience":
             {
-                ulong? universeId = args.TryGetProperty("universeId", out var u) ? u.GetUInt64() : null;
-                ulong? placeId    = args.TryGetProperty("placeId", out var p) ? p.GetUInt64() : null;
+                ulong? universeId = args.TryGetProperty("universeId", out var u)
+                    ? u.GetUInt64()
+                    : null;
+                ulong? placeId = args.TryGetProperty("placeId", out var p) ? p.GetUInt64() : null;
 
                 Experience? exp = await FetchExperience(universeId, placeId);
                 _logger.LogInformation("Fetched experience: {exp}", exp?.Name ?? "(null)");
@@ -325,15 +370,22 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                 string? name = args.TryGetProperty("name", out var n) ? n.GetString() : null;
 
                 Community? community = await FetchCommunity(id, name);
-                _logger.LogInformation("Fetched community: {community}", community?.Name ?? "(null)");
+                _logger.LogInformation(
+                    "Fetched community: {community}",
+                    community?.Name ?? "(null)"
+                );
                 break;
             }
 
             case "communityGetRole":
             {
-                ulong? communityId = args.TryGetProperty("communityId", out var ci) ? ci.GetUInt64() : null;
-                ulong? userId      = args.TryGetProperty("userId", out var ui) ? ui.GetUInt64() : null;
-                string? username   = args.TryGetProperty("username", out var un) ? un.GetString() : null;
+                ulong? communityId = args.TryGetProperty("communityId", out var ci)
+                    ? ci.GetUInt64()
+                    : null;
+                ulong? userId = args.TryGetProperty("userId", out var ui) ? ui.GetUInt64() : null;
+                string? username = args.TryGetProperty("username", out var un)
+                    ? un.GetString()
+                    : null;
 
                 Community? community = await FetchCommunity(communityId);
                 if (community == null)
@@ -344,9 +396,10 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 MemberManager members = await CommunityFetchMemberManager(community);
 
-                User? user = userId.HasValue  ? await FetchUser(userId)
-                        : username != null ? await FetchUser(username: username)
-                        : null;
+                User? user =
+                    userId.HasValue ? await FetchUser(userId)
+                    : username != null ? await FetchUser(username: username)
+                    : null;
 
                 Role? role = await CommunityFetchRole(members, user, userId, username);
                 _logger.LogInformation("Role in community: {role}", role?.Name ?? "(null)");
@@ -355,10 +408,16 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
             case "communitySetRole":
             {
-                ulong? communityId = args.TryGetProperty("communityId", out var ci) ? ci.GetUInt64() : null;
-                ulong? userId      = args.TryGetProperty("userId", out var ui) ? ui.GetUInt64() : null;
-                string? username   = args.TryGetProperty("username", out var un) ? un.GetString() : null;
-                string? roleName   = args.TryGetProperty("roleName", out var rn) ? rn.GetString() : null;
+                ulong? communityId = args.TryGetProperty("communityId", out var ci)
+                    ? ci.GetUInt64()
+                    : null;
+                ulong? userId = args.TryGetProperty("userId", out var ui) ? ui.GetUInt64() : null;
+                string? username = args.TryGetProperty("username", out var un)
+                    ? un.GetString()
+                    : null;
+                string? roleName = args.TryGetProperty("roleName", out var rn)
+                    ? rn.GetString()
+                    : null;
 
                 Community? community = await FetchCommunity(communityId);
                 if (community == null)
@@ -369,9 +428,10 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
                 MemberManager members = await CommunityFetchMemberManager(community);
 
-                User? user = userId.HasValue  ? await FetchUser(userId)
-                        : username != null ? await FetchUser(username: username)
-                        : null;
+                User? user =
+                    userId.HasValue ? await FetchUser(userId)
+                    : username != null ? await FetchUser(username: username)
+                    : null;
 
                 var roleManager = await community.GetRoleManagerAsync();
                 Role? role = roleName != null ? roleManager.GetRole(roleName) : null;
@@ -389,11 +449,18 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
 
             case "uploadByFile":
             {
-                string? filePath  = args.TryGetProperty("filePath", out var fp) ? fp.GetString() : null;
-                string? name      = args.TryGetProperty("name", out var n) ? n.GetString() : null;
-                string? assetType = args.TryGetProperty("assetType", out var at) ? at.GetString() : null;
-                ulong? creatorId  = args.TryGetProperty("creatorId", out var ci) ? ci.GetUInt64() : null;
-                bool creatorIsCommunity = args.TryGetProperty("creatorIsCommunity", out var cc) && cc.GetBoolean();
+                string? filePath = args.TryGetProperty("filePath", out var fp)
+                    ? fp.GetString()
+                    : null;
+                string? name = args.TryGetProperty("name", out var n) ? n.GetString() : null;
+                string? assetType = args.TryGetProperty("assetType", out var at)
+                    ? at.GetString()
+                    : null;
+                ulong? creatorId = args.TryGetProperty("creatorId", out var ci)
+                    ? ci.GetUInt64()
+                    : null;
+                bool creatorIsCommunity =
+                    args.TryGetProperty("creatorIsCommunity", out var cc) && cc.GetBoolean();
 
                 if (filePath == null || name == null || assetType == null || creatorId == null)
                 {
@@ -401,17 +468,31 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                     break;
                 }
 
-                ulong? assetId = await UploadByFile(filePath, name, assetType, creatorId.Value, creatorIsCommunity);
-                _logger.LogInformation("uploadByFile: new asset ID = {assetId}", assetId?.ToString() ?? "(pending moderation)");
+                ulong? assetId = await UploadByFile(
+                    filePath,
+                    name,
+                    assetType,
+                    creatorId.Value,
+                    creatorIsCommunity
+                );
+                _logger.LogInformation(
+                    "uploadByFile: new asset ID = {assetId}",
+                    assetId?.ToString() ?? "(pending moderation)"
+                );
                 break;
             }
 
             case "uploadRemote":
             {
-                string? name      = args.TryGetProperty("name", out var n) ? n.GetString() : null;
-                string? assetType = args.TryGetProperty("assetType", out var at) ? at.GetString() : null;
-                ulong? creatorId  = args.TryGetProperty("creatorId", out var ci) ? ci.GetUInt64() : null;
-                bool creatorIsCommunity = args.TryGetProperty("creatorIsCommunity", out var cc) && cc.GetBoolean();
+                string? name = args.TryGetProperty("name", out var n) ? n.GetString() : null;
+                string? assetType = args.TryGetProperty("assetType", out var at)
+                    ? at.GetString()
+                    : null;
+                ulong? creatorId = args.TryGetProperty("creatorId", out var ci)
+                    ? ci.GetUInt64()
+                    : null;
+                bool creatorIsCommunity =
+                    args.TryGetProperty("creatorIsCommunity", out var cc) && cc.GetBoolean();
 
                 if (name == null || assetType == null || creatorId == null)
                 {
@@ -419,7 +500,12 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                     break;
                 }
 
-                _pendingUpload = new PendingUpload(name, assetType, creatorId.Value, creatorIsCommunity);
+                _pendingUpload = new PendingUpload(
+                    name,
+                    assetType,
+                    creatorId.Value,
+                    creatorIsCommunity
+                );
                 _logger.LogInformation("uploadRemote: ready — send binary next");
                 break;
             }
@@ -453,8 +539,7 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                         if (result.MessageType == WebSocketMessageType.Close)
                             break;
                         ms.Write(buffer, 0, result.Count);
-                    }
-                    while (!result.EndOfMessage);
+                    } while (!result.EndOfMessage);
 
                     if (result.MessageType == WebSocketMessageType.Close)
                         break;
@@ -467,11 +552,16 @@ public class CloudClientWorker(ILogger<GitClientWorker> logger) : BackgroundServ
                         if (_pendingUpload != null)
                         {
                             ulong? assetId = await UploadRemote(payload);
-                            _logger.LogInformation("uploadRemote: new asset ID = {assetId}", assetId?.ToString() ?? "(pending moderation)");
+                            _logger.LogInformation(
+                                "uploadRemote: new asset ID = {assetId}",
+                                assetId?.ToString() ?? "(pending moderation)"
+                            );
                         }
                         else
                         {
-                            _logger.LogWarning("Received binary frame with no pending uploadRemote — ignoring.");
+                            _logger.LogWarning(
+                                "Received binary frame with no pending uploadRemote — ignoring."
+                            );
                         }
                     }
                     else

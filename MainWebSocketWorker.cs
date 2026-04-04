@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Fleck;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Fleck; 
 
 public class MainWebSocketWorker : BackgroundService
 {
@@ -25,13 +25,19 @@ public class MainWebSocketWorker : BackgroundService
             socket.OnOpen = () =>
             {
                 _clients.Add(socket);
-                _logger.LogInformation("Client connected: {0}", socket.ConnectionInfo.ClientIpAddress);
+                _logger.LogInformation(
+                    "Client connected: {0}",
+                    socket.ConnectionInfo.ClientIpAddress
+                );
             };
 
             socket.OnClose = () =>
             {
                 _clients.Remove(socket);
-                _logger.LogInformation("Client disconnected: {0}", socket.ConnectionInfo.ClientIpAddress);
+                _logger.LogInformation(
+                    "Client disconnected: {0}",
+                    socket.ConnectionInfo.ClientIpAddress
+                );
             };
 
             socket.OnMessage = msg =>
