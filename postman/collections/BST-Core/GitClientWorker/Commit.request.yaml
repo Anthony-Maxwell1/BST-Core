@@ -1,4 +1,5 @@
 $kind: websocket-request
-url: ""
+name: Commit
+url: "{{WS_URL}}"
 messages: ./.resources/Commit.resources/messages
 order: 3000

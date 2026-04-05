@@ -1,4 +1,5 @@
 $kind: websocket-request
-url: ""
+name: Pull
+url: "{{WS_URL}}"
 messages: ./.resources/Pull.resources/messages
 order: 2000

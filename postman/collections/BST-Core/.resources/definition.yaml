@@ -1,4 +1,5 @@
 $kind: collection
+name: BST-Core
 variables:
   WS_URL: ""
   ROBLOX_API_KEY: ""
