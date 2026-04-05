@@ -2,7 +2,7 @@ $kind: websocket-message
 content: |-
   {
       "type": "git",
-      "id": "test1",
+      "id": "test26",
       "args": {
           "action": "pull",
           "remoteUrl": "{{GIT_REMOTE_URL}}",

@@ -3,11 +3,14 @@ using System.Text;
 using System.Text.Json;
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 public class GitClientWorker : BackgroundService
 {
     private readonly ILogger<GitClientWorker> _logger;
     private ClientWebSocket _ws;
+    private readonly IDeserializer _yamlDeserializer;
 
     private static CredentialsHandler GetCredentials(string username, string password) =>
         (_url, _user, _cred) =>
@@ -447,7 +450,64 @@ public class GitClientWorker : BackgroundService
             case "pull":
                 await HandlePull(args);
                 break;
+            case "status":
+                if (
+                    !Directory.Exists(UnpackedRoot)
+                    || !File.Exists(Path.Join(UnpackedRoot, "project.yaml"))
+                )
+                {
+                    _logger.LogInformation("status: no project.yaml found in unpacked/");
+                    SendAsync(
+                            _ws,
+                            json: new Dictionary<string, object>
+                            {
+                                { "type", "response" },
+                                { "id", id },
+                                { "status", false },
+                                { "message", "No project.yaml found in unpacked/" },
+                            }
+                        )
+                        .Wait();
+                    return;
+                }
+                var projectYaml = Path.Combine(UnpackedRoot, "project.yaml");
+                var meta = await File.ReadAllTextAsync(projectYaml);
+                var info = _yamlDeserializer.Deserialize<Dictionary<string, object>>(meta);
+                if (info != null && info.TryGetValue("name", out var nameObj))
+                {
+                    var gitJson = LoadGitJson();
+                    var name = nameObj.ToString() ?? "Unknown";
+                    if (gitJson.ContainsKey(name))
+                    {
+                        SendAsync(
+                                _ws,
+                                json: new Dictionary<string, object>
+                                {
+                                    { "type", "response" },
+                                    { "id", id },
+                                    { "status", true },
+                                    { "projectName", nameObj.ToString() ?? "Unknown" },
+                                }
+                            )
+                            .Wait();
+                    }
+                    else
+                    {
+                        SendAsync(
+                                _ws,
+                                json: new Dictionary<string, object>
+                                {
+                                    { "type", "response" },
+                                    { "id", id },
+                                    { "status", false },
+                                    { "message", $"Project '{name}' not found in git.json" },
+                                }
+                            )
+                            .Wait();
+                    }
+                }
 
+                break;
             default:
                 _logger.LogWarning(
                     "ProcessGitAction: unknown action '{action}'",
@@ -455,6 +515,33 @@ public class GitClientWorker : BackgroundService
                 );
                 break;
         }
+    }
+
+    private static async Task SendAsync(
+        ClientWebSocket ws,
+        string message = null,
+        Dictionary<string, object> json = null
+    )
+    {
+        string payload;
+
+        if (json != null)
+        {
+            payload = JsonSerializer.Serialize(json);
+        }
+        else if (!string.IsNullOrEmpty(message))
+        {
+            payload = message;
+        }
+        else
+        {
+            throw new ArgumentException("Either message or json must be provided");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(payload);
+        var segment = new ArraySegment<byte>(bytes);
+
+        await ws.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
     private async Task ProcessMessageAsync(string msg)
@@ -487,6 +574,9 @@ public class GitClientWorker : BackgroundService
     public GitClientWorker(ILogger<GitClientWorker> logger)
     {
         _logger = logger;
+        _yamlDeserializer = new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

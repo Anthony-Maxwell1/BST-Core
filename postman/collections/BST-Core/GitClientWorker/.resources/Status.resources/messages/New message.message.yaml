@@ -1,0 +1,11 @@
+$kind: websocket-message
+content: |-
+  {
+      "type": "git",
+      "id": "test28",
+      "args": {
+          "action": "status"
+      }
+  }
+contentType: json
+order: 1775371957637

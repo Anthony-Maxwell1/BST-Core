@@ -305,7 +305,6 @@ public class CloudClientWorker(ILogger<CloudClientWorker> logger) : BackgroundSe
 
         if (type != "cloud")
         {
-            _logger.LogWarning("Unsupported or missing type: {type}", type);
             return;
         }
 

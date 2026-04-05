@@ -1,0 +1,4 @@
+$kind: websocket-request
+name: Status
+url: "{{WS_URL}}"
+order: 3563457418887793
