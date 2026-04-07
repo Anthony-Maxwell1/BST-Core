@@ -85,7 +85,7 @@ public class InternalClientWorker : BackgroundService
                 _ws,
                 json: new Dictionary<string, object>
                 {
-                    { "type", "edit" },
+                    { "type", "edit-relay" },
                     { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
                     {
                         "args",
@@ -120,7 +120,7 @@ public class InternalClientWorker : BackgroundService
 
             // await SendAsync(_ws, json: new Dictionary<string, object>
             // {
-            //     { "type", "edit" },
+            //     { "type", "edit-relay" },
             //     { "id", "internalignore-" + Guid.NewGuid() }, // prevent feedback loop
             //     { "args", new Dictionary<string, object>
             //         {
@@ -532,6 +532,8 @@ public class InternalClientWorker : BackgroundService
             );
         }
 
+        obj.SetAttribute("UUID", obj.UniqueId.ToString());
+
         // Recurse into children
         foreach (var child in obj.GetChildren())
         {
@@ -578,6 +580,8 @@ public class InternalClientWorker : BackgroundService
             Path.Combine(_unpackedPath, "project.yaml"),
             _yamlSerializer.Serialize(new Dictionary<string, object> { { "name", projectName } })
         );
+
+        _currentPlace.Save(projectFile); // Save new UUID attributes
 
         _currentProject = projectName;
         _projectOpen = true;
