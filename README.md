@@ -120,7 +120,38 @@ Used for clients without access to the file system, such as the roblox studio cl
 
 ## Git packets
 
-[WIP]
+Used to control the git repository.
+
+- `action` - The action. Can be "clone", "commit" or "pull".
+- `remoteUrl` - The git url. e.g. `https://github.com/Anthony-Maxwell1/game.git`
+- `username` - The git username.
+- `passsword` - The git password. In the case of github, this is your PAT.
+- `authorName` & `authorEmail` - What should be shown as user details.
+- `projectName` - The project name that corresponds to the git repository.
+- `message`? - Only for commit, the message to commit and push.
+Note that commiting automatically stages all changes and pushes, and this can not be done any other way due to the way in which the system works, without complex setups that have multiple project files at once tracking the changes in each.
+**Example Packet** (commit):
+
+```json
+{
+    "type": "git",
+    "id": "test27",
+    "args": {
+        "action": "commit",
+        "remoteUrl": "https://github.com/Anthony-Maxwell1/game.git",
+        "username": "Anthony-Maxwell1",
+        "password": "my-totally-secure-pat-here",
+        "authorName": "Anthony-Maxwell1",
+        "authorEmail": "anthony@thatdev.org",
+        "projectName": "Place1",
+        "message": "Added a lobby"
+    }
+}
+```
+
+Response packets are provided with type response.
+
+**Note**: Credential storing is planned, when I get around to adding it.
 
 ---
 
@@ -148,3 +179,6 @@ unpacked/
 - The client automatically restores the last unpacked project if present on startup.
 - Edits to properties or scripts are applied to both the in-memory RBXL (`_currentPlace`) and the unpacked folder.
 - CLI responses are always sent with `type: "response"` and include the original `id` if provided.
+
+## Testing
+Is performed using postman. Using postman, you can open this local directory, and it will automatically find the collection and load it. You should then create an environment and insert your api keys and usernames, etc. for testing.
