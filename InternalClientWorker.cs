@@ -186,6 +186,10 @@ public class InternalClientWorker : BackgroundService
                             // Coerce the YAML string value to the property's actual type
                             prop.Value = CoerceValue(kvp.Value, prop.Value);
                         }
+                        else
+                        {
+                            instance.SetAttribute(kvp.Key, kvp.Value);
+                        }
                     }
                 }
                 await SendAsync(
